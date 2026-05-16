@@ -1,0 +1,16 @@
+name = "image-site"
+compatibility_date = "2026-05-11"
+pages_build_output_dir = "dist"
+
+[[durable_objects.bindings]]
+name = "IMAGE_SITE_JOB_STORE"
+class_name = "JobStore"
+script_name = "image-site-job-worker"
+
+[[kv_namespaces]]
+binding = "IMAGE_SITE_JOBS"
+id = "70a6caec5b3642709626007581c5921f"
+
+[[queues.producers]]
+binding = "IMAGE_SITE_QUEUE"
+queue = "image-site-jobs"

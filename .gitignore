@@ -1,0 +1,55 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+.yarn/
+
+# Build output
+dist/
+build/
+coverage/
+
+# Local environment
+.env
+.env.*
+!.env.example
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Tool caches
+.cache/
+.npm-cache/
+.eslintcache
+.vite/
+
+# Deployment and platform state
+.vercel/
+.vercel-cache/
+.wrangler/
+.cf-config/
+.cf-home/
+
+# Local app data
+.data/
+
+# Editor and OS noise
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+
+# Local agent/config state
+.claude/settings.local.json
+.codex
+
+# Generated archives
+*.zip
