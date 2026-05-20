@@ -29,8 +29,9 @@ export function useConversations() {
         listConversations(),
         getActiveConversationId(),
       ])
+      const activeConversation = storedActiveId ? await getStoredConversation(storedActiveId) : null
       if (seq !== loadSeq.current) return
-      setConversations(items)
+      setConversations(items.map((item) => (activeConversation?.id === item.id ? activeConversation : item)))
       setActiveIdState(storedActiveId)
     } catch {
       if (seq !== loadSeq.current) return

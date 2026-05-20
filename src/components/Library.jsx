@@ -4,6 +4,8 @@ import Popover, { PopoverItem } from './Popover'
 import FallbackImage from './FallbackImage'
 import { formatBytes, formatDimensions, truncatePrompt, formatDate, classifyOrientation, getImageMeta } from '../utils/image'
 
+const LIBRARY_PAGE_SIZE = 60
+
 export default function Library({
   conversations, onPreview, onJumpToTurn, onDelete,
 }) {
@@ -12,6 +14,7 @@ export default function Library({
   const [orientation, setOrientation] = useState('all')
   const [sortOpen, setSortOpen] = useState(false)
   const [orientOpen, setOrientOpen] = useState(false)
+  const [visibleCount, setVisibleCount] = useState(LIBRARY_PAGE_SIZE)
 
   const allImages = useMemo(() => {
     const result = []
@@ -56,9 +59,13 @@ export default function Library({
     return items
   }, [allImages, query, orientation, sort])
 
+
+  const effectiveVisibleCount = Math.min(visibleCount, Math.max(filtered.length, LIBRARY_PAGE_SIZE))
+  const visibleItems = useMemo(() => filtered.slice(0, effectiveVisibleCount), [filtered, effectiveVisibleCount])
   const totalCount = allImages.length
   const isEmpty = totalCount === 0
   const isNoMatch = !isEmpty && filtered.length === 0
+  const hasMore = visibleItems.length < filtered.length
 
   const sortLabel = sort === 'newest' ? '最新优先' : '最旧优先'
   const orientLabel = orientation === 'all' ? '全部方向' : orientation === 'landscape' ? '横图' : orientation === 'portrait' ? '竖图' : '方图'
@@ -159,7 +166,7 @@ export default function Library({
         ) : (
           <div className="mx-auto max-w-7xl px-5 py-5">
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-              {filtered.map((item, idx) => (
+              {visibleItems.map((item, idx) => (
                 <ImageCard
                   key={`${item.turnId}-${item.image.id}`}
                   item={item}
@@ -170,6 +177,17 @@ export default function Library({
                 />
               ))}
             </div>
+            {hasMore && (
+              <div className="mt-5 flex justify-center">
+                <button
+                  className="inline-flex h-10 items-center rounded-full border border-borderSoft bg-white px-5 text-sm font-medium text-charcoal shadow-sm transition hover:bg-muted"
+                  onClick={() => setVisibleCount((current) => Math.min(current + LIBRARY_PAGE_SIZE, filtered.length))}
+                  type="button"
+                >
+                  加载更多
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>

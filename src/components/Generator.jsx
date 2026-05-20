@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react'
 import {
   ChevronDown, Sparkles, LoaderCircle, ArrowUp, X,
-  SlidersHorizontal, ImagePlus, Store,
+  SlidersHorizontal, ImagePlus, Store, WandSparkles,
 } from 'lucide-react'
 import Popover, { PopoverItem } from './Popover'
 import {
@@ -24,6 +24,8 @@ export default function Generator({
   resolution, onResolutionChange,
   count, onCountChange,
   quality, onQualityChange,
+  ecomSkillAvailable = false, ecomSkillEnabled, onEcomSkillEnabledChange,
+  optimizerModels = [], optimizerModel, onOptimizerModelChange,
   onOpenPromptMarket,
 }) {
   const [dragOver, setDragOver] = useState(false)
@@ -32,6 +34,7 @@ export default function Generator({
   const [resOpen, setResOpen] = useState(false)
   const [countOpen, setCountOpen] = useState(false)
   const [qualOpen, setQualOpen] = useState(false)
+  const [optimizerOpen, setOptimizerOpen] = useState(false)
   const textareaRef = useRef(null)
   const fileRef = useRef(null)
 
@@ -46,6 +49,11 @@ export default function Generator({
   const modelLabel = useMemo(() =>
     models.find((m) => m.model_key === model)?.display_name || model || '选择模型',
     [models, model])
+
+  const optimizerLabel = useMemo(() => {
+    if (!ecomSkillAvailable) return '不可用'
+    return optimizerModels.find((m) => m.model_key === optimizerModel)?.display_name || optimizerModel || '自动选择'
+  }, [ecomSkillAvailable, optimizerModels, optimizerModel])
 
   const ratioLabel = useMemo(() =>
     ASPECT_RATIOS.find((r) => r.value === aspectRatio)?.label ?? 'Auto',
@@ -210,6 +218,20 @@ export default function Generator({
               灵感
             </button>
 
+            <button
+              aria-pressed={ecomSkillEnabled}
+              className={`inline-flex h-9 items-center gap-1.5 rounded-full px-3 text-xs font-medium shadow-sm transition disabled:cursor-not-allowed disabled:opacity-50 ${
+                ecomSkillEnabled ? 'bg-charcoal text-white' : 'bg-white text-charcoal hover:bg-muted'
+              }`}
+              disabled={!ecomSkillAvailable}
+              onClick={() => onEcomSkillEnabledChange(!ecomSkillEnabled)}
+              title={ecomSkillAvailable ? '使用电商 Skill 优化提示词' : '上游没有匹配 gpt-x.x 的意图模型'}
+              type="button"
+            >
+              <WandSparkles size={13} />
+              电商 Skill
+            </button>
+
             <div className="inline-flex h-9 overflow-hidden rounded-full bg-white p-0.5 text-xs font-medium text-charcoal shadow-sm">
               {MODE_OPTIONS.map((option) => (
                 <button
@@ -235,7 +257,7 @@ export default function Generator({
               </span>
             }>
               {models.length === 0 ? (
-                <p className="px-3 py-2 text-xs text-stoneText">请先在「设置」填写 NewAPI 地址并加载模型。</p>
+                <p className="px-3 py-2 text-xs text-stoneText">上游没有匹配 gpt-image* 的生图模型。</p>
               ) : (
                 models.map((m) => (
                   <PopoverItem key={m.model_key} active={m.model_key === model} onSelect={() => { onModelChange(m.model_key); setModelOpen(false) }}>
@@ -244,6 +266,25 @@ export default function Generator({
                 ))
               )}
             </Popover>
+
+            {ecomSkillEnabled && (
+              <Popover align="start" disabled={!ecomSkillAvailable} open={optimizerOpen} onClose={setOptimizerOpen} side="top" trigger={
+                <span className="inline-flex h-9 max-w-[200px] items-center gap-1.5 rounded-full bg-white px-3 text-xs font-medium text-charcoal shadow-sm transition hover:bg-muted">
+                  <WandSparkles size={13} />
+                  <span className="truncate">意图 · {optimizerLabel}</span>
+                  <ChevronDown size={12} />
+                </span>
+              }>
+                <PopoverItem active={!optimizerModel} onSelect={() => { onOptimizerModelChange(''); setOptimizerOpen(false) }}>
+                  <span>自动选择</span>
+                </PopoverItem>
+                {optimizerModels.map((m) => (
+                  <PopoverItem key={m.model_key} active={m.model_key === optimizerModel} onSelect={() => { onOptimizerModelChange(m.model_key); setOptimizerOpen(false) }}>
+                    <span className="truncate">{m.display_name || m.model_key}</span>
+                  </PopoverItem>
+                ))}
+              </Popover>
+            )}
 
             <Popover align="start" open={ratioOpen} onClose={setRatioOpen} side="top" trigger={
               <span className="inline-flex h-9 items-center gap-1.5 rounded-full bg-white px-3 text-xs font-medium text-charcoal shadow-sm transition hover:bg-muted">

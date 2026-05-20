@@ -1,10 +1,11 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 
 const STORAGE_KEY = 'image-site:provider-config'
 const LAST_MODEL_KEY = 'image-site:last-model'
+const PROMPT_OPTIMIZER_KEY = 'image-site:prompt-optimizer'
 const CLIENT_ID_KEY = 'image-site:client-id'
 
-const defaults = { endpoint: '', apiKey: '', clientId: '', groupId: null, groupName: '' }
+const defaults = { endpoint: '', apiKey: '', clientId: '', groupId: null, groupName: '', promptOptimizerModel: '' }
 
 function createClientId() {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID()
@@ -30,6 +31,7 @@ function load() {
       clientId: getClientId(parsed),
       groupId: parsed.groupId ?? null,
       groupName: parsed.groupName ?? '',
+      promptOptimizerModel: parsed.promptOptimizerModel ?? '',
     }
   } catch {
     return { ...defaults, clientId: getClientId({}) }
@@ -50,6 +52,10 @@ export function useSettings() {
     if (typeof window === 'undefined') return ''
     return window.localStorage.getItem(LAST_MODEL_KEY) || ''
   })
+  const [promptOptimizerModel, setPromptOptimizerModelState] = useState(() => {
+    if (typeof window === 'undefined') return ''
+    return window.localStorage.getItem(PROMPT_OPTIMIZER_KEY) || config.promptOptimizerModel || ''
+  })
 
   useEffect(() => { save(config) }, [config])
 
@@ -62,7 +68,19 @@ export function useSettings() {
     }
   }, [])
 
+  const updatePromptOptimizerModel = useCallback((model) => {
+    setPromptOptimizerModelState(model)
+    setConfig((prev) => ({ ...prev, promptOptimizerModel: model }))
+    if (typeof window !== 'undefined') {
+      try { window.localStorage.setItem(PROMPT_OPTIMIZER_KEY, model) } catch { /* ignore */ }
+    }
+  }, [])
+
+  const mergedConfig = useMemo(
+    () => ({ ...config, promptOptimizerModel }),
+    [config, promptOptimizerModel]
+  )
   const isConfigured = Boolean(config.endpoint.trim() && config.apiKey.trim() && config.clientId.trim() && config.groupId != null)
 
-  return { config, updateConfig, isConfigured, lastModel, updateLastModel }
+  return { config: mergedConfig, updateConfig, isConfigured, lastModel, updateLastModel, promptOptimizerModel, updatePromptOptimizerModel }
 }

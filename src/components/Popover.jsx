@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 
-export default function Popover({ open, onClose, trigger, children, align = 'start', side = 'top' }) {
+export default function Popover({ open, onClose, trigger, children, align = 'start', side = 'top', disabled = false }) {
   const ref = useRef(null)
 
   useEffect(() => {
@@ -33,8 +33,9 @@ export default function Popover({ open, onClose, trigger, children, align = 'sta
     <div className="relative" ref={ref}>
       <button
         aria-expanded={open}
-        className="contents"
-        onClick={() => onClose(!open)}
+        className={disabled ? 'contents cursor-not-allowed opacity-60' : 'contents'}
+        disabled={disabled}
+        onClick={() => { if (!disabled) onClose(!open) }}
         type="button"
       >
         {trigger}

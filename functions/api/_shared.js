@@ -1,6 +1,6 @@
 const JOB_TTL_SECONDS = 48 * 60 * 60
 const MAX_IMAGE_BYTES = 18 * 1024 * 1024
-const RUNNING_TIMEOUT_MS = 3 * 60 * 1000
+const RUNNING_TIMEOUT_MS = 30 * 60 * 1000
 
 export function json(payload, status = 200) {
   return new Response(JSON.stringify(payload), {
@@ -133,6 +133,21 @@ export async function listJobs(env, clientId) {
 }
 
 export async function generateImages(endpoint, apiKey, request) {
+  const promptItems = normalizePromptItems(request)
+  const images = []
+  const raw = []
+  for (const item of promptItems) {
+    const requestForPrompt = { ...request, prompt: item.prompt, n: 1 }
+    delete requestForPrompt.prompts
+    const result = await generateProviderImages(endpoint, apiKey, requestForPrompt)
+    raw.push({ title: item.title, data: result.data })
+    images.push(...result.images.map((image) => ({ ...image, title: item.title })))
+  }
+  if (images.length === 0) throw new Error('provider returned no images')
+  return { data: raw, images }
+}
+
+async function generateProviderImages(endpoint, apiKey, request) {
   const mode = request?.mode === 'edit' ? 'edit' : 'generate'
   const path = mode === 'edit' ? '/v1/images/edits' : '/v1/images/generations'
   const body = normalizeProviderSize(buildProviderRequest(request, mode))
@@ -149,8 +164,24 @@ export async function generateImages(endpoint, apiKey, request) {
 
   const data = text ? JSON.parse(text) : {}
   const images = await normalizeImages(data)
-  if (images.length === 0) throw new Error('provider returned no images')
   return { data, images }
+}
+
+function normalizePromptItems(request) {
+  const prompts = Array.isArray(request?.prompts) ? request.prompts : []
+  const items = prompts.map((item, index) => {
+    if (typeof item === 'string') {
+      const prompt = item.trim()
+      return prompt ? { title: `Image ${index + 1}`, prompt } : null
+    }
+    if (!item || typeof item !== 'object') return null
+    const prompt = typeof item.prompt === 'string' ? item.prompt.trim() : ''
+    if (!prompt) return null
+    const title = typeof item.title === 'string' && item.title.trim() ? item.title.trim() : `Image ${index + 1}`
+    return { title, prompt }
+  }).filter(Boolean).slice(0, 14)
+  if (items.length > 0) return items
+  return [{ title: 'Image 1', prompt: typeof request?.prompt === 'string' ? request.prompt : '' }]
 }
 
 async function normalizeImages(data) {
@@ -211,12 +242,39 @@ function align16(value) {
 
 function buildProviderRequest(request, mode) {
   if (mode !== 'edit') return request
-  const images = Array.isArray(request.sourceImages)
-    ? request.sourceImages.map((image) => ({ image_url: image.url || image.image_url })).filter((image) => image.image_url)
-    : []
+  const images = collectValidProviderImages(request.sourceImages)
+  if (images.length === 0) throw new Error('sourceImages must include an http, https, or data:image URL')
   const body = { ...request }
   delete body.sourceImages
   return { ...body, images }
+}
+
+function collectValidProviderImages(sourceImages) {
+  if (!Array.isArray(sourceImages)) return []
+  return sourceImages
+    .map(providerImageUrl)
+    .filter(Boolean)
+    .map((imageUrl) => ({ image_url: imageUrl }))
+}
+
+function providerImageUrl(image) {
+  const value = typeof image === 'string'
+    ? image
+    : image?.url || image?.image_url || image?.dataUrl
+  if (typeof value !== 'string') return ''
+  const url = value.trim()
+  return isProviderImageUrl(url) ? url : ''
+}
+
+function isProviderImageUrl(url) {
+  if (!url) return false
+  if (/^data:image\/[a-z0-9.+-]+(?:;[a-z0-9.+-]+=[^;,]+)*(?:;base64)?,.+/i.test(url)) return true
+  try {
+    const parsed = new URL(url)
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:'
+  } catch {
+    return false
+  }
 }
 
 function summarizeRequest(request) {
@@ -225,6 +283,7 @@ function summarizeRequest(request) {
     mode: request.mode === 'edit' ? 'edit' : 'generate',
     model: typeof request.model === 'string' ? request.model : '',
     n: Number.isFinite(request.n) ? request.n : undefined,
+    promptCount: Array.isArray(request.prompts) ? request.prompts.length : undefined,
     size: typeof request.size === 'string' ? request.size : '',
     quality: typeof request.quality === 'string' ? request.quality : '',
     hasSourceImages: Array.isArray(request.sourceImages) && request.sourceImages.length > 0,

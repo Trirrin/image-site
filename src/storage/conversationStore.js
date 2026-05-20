@@ -171,6 +171,15 @@ async function loadImageRecord(db, id) {
   return record || null
 }
 
+async function loadConversationRecord(db, id) {
+  if (!id) return null
+  const transaction = db.transaction(CONVERSATION_STORE, 'readonly')
+  const done = txDone(transaction)
+  const item = await requestResult(transaction.objectStore(CONVERSATION_STORE).get(id))
+  await done
+  return normalizeConversation(item)
+}
+
 async function putImageRecord(db, record) {
   const transaction = db.transaction(IMAGE_STORE, 'readwrite')
   transaction.objectStore(IMAGE_STORE).put(record)
@@ -357,11 +366,7 @@ export async function listConversations() {
   const items = await requestResult(transaction.objectStore(CONVERSATION_STORE).getAll())
   await done
 
-  const hydrated = []
-  for (const item of (items || []).map(normalizeConversation).filter(Boolean)) {
-    hydrated.push(await hydrateConversationImages(db, item))
-  }
-  return sortConversations(hydrated.filter(Boolean))
+  return sortConversations((items || []).map(normalizeConversation).filter(Boolean))
 }
 
 export async function getConversation(id) {
@@ -370,11 +375,7 @@ export async function getConversation(id) {
   const db = await openDb()
   if (!db) return memoryConversations.find((item) => item.id === id) || null
 
-  const transaction = db.transaction(CONVERSATION_STORE, 'readonly')
-  const done = txDone(transaction)
-  const item = await requestResult(transaction.objectStore(CONVERSATION_STORE).get(id))
-  await done
-  return hydrateConversationImages(db, item)
+  return hydrateConversationImages(db, await loadConversationRecord(db, id))
 }
 
 export async function saveConversation(conversation) {
@@ -385,7 +386,7 @@ export async function saveConversation(conversation) {
   const db = await openDb()
   if (!db) return putMemoryConversation(normalized)
 
-  const previous = await getConversation(normalized.id)
+  const previous = await loadConversationRecord(db, normalized.id)
   const localized = await localizeConversationImages(db, normalized)
   const stored = stripTransientImageUrls(localized)
   await deleteRemovedImages(db, previous, stored)
@@ -405,7 +406,7 @@ export async function deleteConversation(id) {
     return
   }
 
-  const existing = await getConversation(id)
+  const existing = await loadConversationRecord(db, id)
   await deleteConversationImages(db, existing)
 
   const transaction = db.transaction(CONVERSATION_STORE, 'readwrite')

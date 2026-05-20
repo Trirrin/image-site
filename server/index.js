@@ -6,12 +6,13 @@ import { dirname, extname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import pg from 'pg'
 import bcrypt from 'bcryptjs'
+import { isEcomOptimizerModel, optimizeEcomPrompt } from '../functions/api/ecom-prompt-engine.js'
 
 const PORT = Number(process.env.PORT || 8787)
 const JOB_TTL_MS = 48 * 60 * 60 * 1000
 const MAX_BODY_BYTES = 50 * 1024 * 1024
 const MAX_IMAGE_BYTES = 18 * 1024 * 1024
-const RUNNING_TIMEOUT_MS = 3 * 60 * 1000
+const RUNNING_TIMEOUT_MS = 30 * 60 * 1000
 const SUB2API_API_URL = (process.env.SUB2API_API_URL || 'http://127.0.0.1:10001').replace(/\/+$/, '')
 
 const DB_PASSWORD = process.env.SUB2API_DB_PASSWORD || ''
@@ -64,6 +65,10 @@ const server = createServer(async (req, res) => {
     }
     if (url.pathname === '/api/models' && req.method === 'POST') {
       await handleModels(req, res)
+      return
+    }
+    if (url.pathname === '/api/optimize-prompt' && req.method === 'POST') {
+      await handleOptimizePrompt(req, res)
       return
     }
     if (url.pathname === '/api/jobs' && req.method === 'POST') {
@@ -305,6 +310,46 @@ async function handleModels(req, res) {
   sendRawJson(res, 200, text)
 }
 
+async function handleOptimizePrompt(req, res) {
+  const body = await readJson(req)
+  const wantsStream = acceptsEventStream(req)
+  if (wantsStream) {
+    await handleOptimizePromptStream(body, res)
+    return
+  }
+
+  const { optimized } = await runPromptOptimization(body)
+  sendJson(res, 200, { optimized })
+}
+
+async function handleOptimizePromptStream(body, res) {
+  sendSseHeaders(res)
+  const send = (event, data = {}) => writeSse(res, event, data)
+  send('status', { stage: 'received', message: '已收到优化请求' })
+  try {
+    send('status', { stage: 'optimizing', message: '意图模型正在优化提示词' })
+    const { optimized } = await runPromptOptimization(body, (progress) => send('progress', progress))
+    send('done', { optimized })
+  } catch (error) {
+    send('error', { error: error.message || 'failed to optimize prompt' })
+  } finally {
+    res.end()
+  }
+}
+
+async function runPromptOptimization(body, onProgress) {
+  const input = body.input && typeof body.input === 'object' ? body.input : {}
+  const model = typeof body.model === 'string' ? body.model.trim() : ''
+  if (!model || !isEcomOptimizerModel(model)) {
+    throw new Error('电商 Skill 优化失败。请关闭「电商 Skill」后再直接生图。')
+  }
+
+  const endpoint = normalizeEndpoint(body.endpoint)
+  const apiKey = requireString(body.apiKey, 'apiKey')
+  const { optimized } = await optimizeEcomPrompt({ endpoint, apiKey, model, input, onProgress })
+  return { optimized: sanitizeOptimizedPrompt(optimized) }
+}
+
 async function handleCreateJob(req, res) {
   const body = await readJson(req)
   const clientId = requireString(body.clientId, 'clientId')
@@ -370,32 +415,63 @@ async function runJob(id, endpoint, apiKey, request) {
   runningJobs.add(id)
   try {
     await patchJob(id, { status: 'running', progress: 15 })
-    const mode = request?.mode === 'edit' ? 'edit' : 'generate'
-    const path = mode === 'edit' ? '/v1/images/edits' : '/v1/images/generations'
-    const body = normalizeProviderSize(buildProviderRequest(request, mode))
-    const response = await fetch(`${endpoint}${path}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify(body),
-    })
-    await patchJob(id, { progress: 65 })
-
-    const text = await response.text()
-    if (!response.ok) throw new Error(`API error (${response.status}): ${text || 'request failed'}`)
-
-    const data = text ? JSON.parse(text) : {}
-    const images = await normalizeImages(data)
+    const promptItems = normalizePromptItems(request)
+    const images = []
+    const raw = []
+    for (const [index, item] of promptItems.entries()) {
+      const progress = Math.round(15 + (index / promptItems.length) * 70)
+      await patchJob(id, { progress })
+      const requestForPrompt = { ...request, prompt: item.prompt, n: 1 }
+      delete requestForPrompt.prompts
+      const result = await generateProviderImages(endpoint, apiKey, requestForPrompt)
+      raw.push({ title: item.title, data: result.data })
+      images.push(...result.images.map((image) => ({ ...image, title: item.title })))
+    }
     if (images.length === 0) throw new Error('provider returned no images')
 
-    await patchJob(id, { status: 'success', progress: 100, images, raw: data })
+    await patchJob(id, { status: 'success', progress: 100, images, raw })
   } catch (error) {
     await patchJob(id, { status: 'error', progress: 100, error: error.message || 'generation failed' })
   } finally {
     runningJobs.delete(id)
   }
+}
+
+async function generateProviderImages(endpoint, apiKey, request) {
+  const mode = request?.mode === 'edit' ? 'edit' : 'generate'
+  const path = mode === 'edit' ? '/v1/images/edits' : '/v1/images/generations'
+  const body = normalizeProviderSize(buildProviderRequest(request, mode))
+  const response = await fetch(`${endpoint}${path}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify(body),
+  })
+  const text = await response.text()
+  if (!response.ok) throw new Error(`API error (${response.status}): ${text || 'request failed'}`)
+
+  const data = text ? JSON.parse(text) : {}
+  const images = await normalizeImages(data)
+  return { data, images }
+}
+
+function normalizePromptItems(request) {
+  const prompts = Array.isArray(request?.prompts) ? request.prompts : []
+  const items = prompts.map((item, index) => {
+    if (typeof item === 'string') {
+      const prompt = item.trim()
+      return prompt ? { title: `Image ${index + 1}`, prompt } : null
+    }
+    if (!item || typeof item !== 'object') return null
+    const prompt = typeof item.prompt === 'string' ? item.prompt.trim() : ''
+    if (!prompt) return null
+    const title = typeof item.title === 'string' && item.title.trim() ? item.title.trim() : `Image ${index + 1}`
+    return { title, prompt }
+  }).filter(Boolean).slice(0, 14)
+  if (items.length > 0) return items
+  return [{ title: 'Image 1', prompt: typeof request?.prompt === 'string' ? request.prompt : '' }]
 }
 
 async function normalizeImages(data) {
@@ -456,12 +532,39 @@ function align16(value) {
 
 function buildProviderRequest(request, mode) {
   if (mode !== 'edit') return request
-  const images = Array.isArray(request.sourceImages)
-    ? request.sourceImages.map((image) => ({ image_url: image.url || image.image_url })).filter((image) => image.image_url)
-    : []
+  const images = collectValidProviderImages(request.sourceImages)
+  if (images.length === 0) throw new Error('sourceImages must include an http, https, or data:image URL')
   const body = { ...request }
   delete body.sourceImages
   return { ...body, images }
+}
+
+function collectValidProviderImages(sourceImages) {
+  if (!Array.isArray(sourceImages)) return []
+  return sourceImages
+    .map(providerImageUrl)
+    .filter(Boolean)
+    .map((imageUrl) => ({ image_url: imageUrl }))
+}
+
+function providerImageUrl(image) {
+  const value = typeof image === 'string'
+    ? image
+    : image?.url || image?.image_url || image?.dataUrl
+  if (typeof value !== 'string') return ''
+  const url = value.trim()
+  return isProviderImageUrl(url) ? url : ''
+}
+
+function isProviderImageUrl(url) {
+  if (!url) return false
+  if (/^data:image\/[a-z0-9.+-]+(?:;[a-z0-9.+-]+=[^;,]+)*(?:;base64)?,.+/i.test(url)) return true
+  try {
+    const parsed = new URL(url)
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:'
+  } catch {
+    return false
+  }
 }
 
 function summarizeRequest(request) {
@@ -470,6 +573,7 @@ function summarizeRequest(request) {
     mode: request.mode === 'edit' ? 'edit' : 'generate',
     model: typeof request.model === 'string' ? request.model : '',
     n: Number.isFinite(request.n) ? request.n : undefined,
+    promptCount: Array.isArray(request.prompts) ? request.prompts.length : undefined,
     size: typeof request.size === 'string' ? request.size : '',
     quality: typeof request.quality === 'string' ? request.quality : '',
     hasSourceImages: Array.isArray(request.sourceImages) && request.sourceImages.length > 0,
@@ -529,6 +633,31 @@ async function readJson(req) {
   }
   const raw = Buffer.concat(chunks).toString('utf8')
   return raw ? JSON.parse(raw) : {}
+}
+
+function acceptsEventStream(req) {
+  return typeof req.headers.accept === 'string' && req.headers.accept.includes('text/event-stream')
+}
+
+function sendSseHeaders(res) {
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream; charset=utf-8',
+    'Cache-Control': 'no-cache, no-transform',
+    Connection: 'keep-alive',
+    'X-Accel-Buffering': 'no',
+  })
+}
+
+function writeSse(res, event, data = {}) {
+  res.write(`event: ${event}\n`)
+  res.write(`data: ${JSON.stringify(data)}\n\n`)
+}
+
+function sanitizeOptimizedPrompt(optimized) {
+  if (!optimized || typeof optimized !== 'object') return optimized
+  const safeOptimized = { ...optimized }
+  delete safeOptimized.rawContent
+  return safeOptimized
 }
 
 function sendJson(res, status, payload) {
