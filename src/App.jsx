@@ -16,6 +16,7 @@ import { useConversations } from './hooks/useConversations'
 import { usePromptFavorites } from './hooks/usePromptFavorites'
 import { getSize, readFileAsDataURL } from './utils/image'
 import { IMAGE_MODEL_REGEX, OPTIMIZER_MODEL_REGEX } from './utils/constants'
+import { applyPromptReviewEdit } from './utils/promptOptimization'
 
 const activeJobPollers = new Map()
 const JOB_POLL_INTERVAL_MS = 5000
@@ -596,10 +597,7 @@ export default function App() {
 
   const handleConfirmPromptDraft = useCallback(async (editedPrompt = '') => {
     if (!pendingPromptDraft) return
-    const promptText = typeof editedPrompt === 'string' ? editedPrompt.trim() : ''
-    const draft = promptText
-      ? { ...pendingPromptDraft, optimizedPrompt: { ...pendingPromptDraft.optimizedPrompt, prompt: promptText, prompts: [] } }
-      : pendingPromptDraft
+    const draft = applyPromptReviewEdit(pendingPromptDraft, editedPrompt)
     setPendingPromptDraft(null)
     setOptimizerStatus('')
     setSubmittingConversationId(draft.conversationId)

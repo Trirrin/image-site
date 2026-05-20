@@ -1,5 +1,5 @@
 const OPTIMIZER_TEMPERATURE = 0.25
-const OPTIMIZER_MAX_OUTPUT_TOKENS = 1400
+const OPTIMIZER_MAX_OUTPUT_TOKENS = readPositiveNumberEnv('ECOM_OPTIMIZER_MAX_OUTPUT_TOKENS', 8000)
 const OPTIMIZER_MODEL_REGEX = /^gpt-\d+\.\d+$/i
 const OPTIMIZER_RESPONSE_SCHEMA = {
   type: 'object',
@@ -30,6 +30,9 @@ const OPTIMIZER_RESPONSE_SCHEMA = {
   },
   required: ['prompt', 'prompts', 'template', 'category', 'style', 'notes'],
 }
+const SKILL_ROUTER_MAX_OUTPUT_TOKENS = readPositiveNumberEnv('ECOM_SKILL_ROUTER_MAX_OUTPUT_TOKENS', 900)
+const SKILL_ROUTER_MAX_SKILLS = 4
+const SKILL_LOAD_TOOL_NAME = 'load_skill'
 
 const ECOM_SKILL_REPO = 'liangdabiao/ecom-details-image'
 const ECOM_SKILL_BRANCH = 'main'
@@ -38,6 +41,7 @@ const ECOM_SKILL_TEMPLATE_LIST_URL = `https://api.github.com/repos/${ECOM_SKILL_
 const ECOM_SKILL_CACHE_TTL_MS = readPositiveNumberEnv('ECOM_SKILL_CACHE_TTL_MS', 5 * 60 * 1000)
 const ECOM_SKILL_FETCH_TIMEOUT_MS = readPositiveNumberEnv('ECOM_SKILL_FETCH_TIMEOUT_MS', 8000)
 const ECOM_SKILL_MAX_CONTEXT_CHARS = readPositiveNumberEnv('ECOM_SKILL_MAX_CONTEXT_CHARS', 120000)
+const DEFAULT_REMOTE_TEMPLATE_FILE_NAME = '01-hero-image.json'
 
 let remoteSkillCache = null
 let remoteSkillPromise = null
@@ -170,13 +174,13 @@ export function buildEcomPromptBrief(input = {}) {
   }
 }
 
-export async function buildEcomOptimizerMessages(input = {}, fetchImpl = fetch) {
-  const { brief, system, user } = await buildEcomOptimizerContext(input, fetchImpl)
+export async function buildEcomOptimizerMessages(input = {}, fetchImpl = fetch, contextOptions = {}) {
+  const { brief, system, user } = await buildEcomOptimizerContext(input, fetchImpl, contextOptions)
   return { brief, messages: [{ role: 'system', content: system }, { role: 'user', content: user }] }
 }
 
-export async function buildEcomOptimizerResponsesRequest(input = {}, model = '', fetchImpl = fetch) {
-  const { brief, system, user } = await buildEcomOptimizerContext(input, fetchImpl)
+export async function buildEcomOptimizerResponsesRequest(input = {}, model = '', fetchImpl = fetch, contextOptions = {}) {
+  const { brief, system, user } = await buildEcomOptimizerContext(input, fetchImpl, contextOptions)
   const trimmedModel = typeof model === 'string' ? model.trim() : ''
   return {
     brief,
@@ -200,8 +204,8 @@ export async function buildEcomOptimizerResponsesRequest(input = {}, model = '',
   }
 }
 
-export async function buildEcomOptimizerChatRequest(input = {}, model = '', fetchImpl = fetch) {
-  const { brief, system, user } = await buildEcomOptimizerContext(input, fetchImpl)
+export async function buildEcomOptimizerChatRequest(input = {}, model = '', fetchImpl = fetch, contextOptions = {}) {
+  const { brief, system, user } = await buildEcomOptimizerContext(input, fetchImpl, contextOptions)
   const trimmedModel = typeof model === 'string' ? model.trim() : ''
   return {
     brief,
@@ -230,7 +234,13 @@ export async function optimizeEcomPrompt({ endpoint, apiKey, model, input = {}, 
     Authorization: `Bearer ${apiKey}`,
   }
 
-  const { request: responsesRequest } = await buildEcomOptimizerResponsesRequest(input, trimmedModel, fetchImpl)
+  const remoteSkill = await loadEcomDetailsImageSkill(fetchImpl)
+  const skillRoute = await routeEcomSkillsWithAgent({ endpoint, headers, model: trimmedModel, input, remoteSkill, fetchImpl, onProgress })
+  const { request: responsesRequest } = await buildEcomOptimizerResponsesRequest(input, trimmedModel, fetchImpl, {
+    remoteSkill,
+    selectedTemplates: skillRoute.selectedTemplates,
+    skillRouting: skillRoute.skillRouting,
+  })
   const responsesResult = await postJsonStream(fetchImpl, `${endpoint}/v1/responses`, headers, responsesRequest, onProgress)
   if (!responsesResult.ok) {
     throw new Error(responsesResult.error || responsesResult.text || `responses API error (${responsesResult.status})`)
@@ -262,11 +272,13 @@ export function parseOptimizerResult(data, fallbackBrief, input = {}) {
   }
 }
 
-async function buildEcomOptimizerContext(input = {}, fetchImpl = fetch) {
+async function buildEcomOptimizerContext(input = {}, fetchImpl = fetch, contextOptions = {}) {
   const brief = buildEcomPromptBrief(input)
-  const remoteSkill = await loadEcomDetailsImageSkill(fetchImpl)
-  const selectedTemplates = selectRemoteTemplates(remoteSkill.templates, input)
-  const skillContext = buildRemoteSkillContext(remoteSkill, selectedTemplates)
+  const remoteSkill = contextOptions.remoteSkill || await loadEcomDetailsImageSkill(fetchImpl)
+  const selectedTemplates = Array.isArray(contextOptions.selectedTemplates)
+    ? contextOptions.selectedTemplates
+    : selectRemoteTemplates(remoteSkill.templates, input)
+  const skillContext = buildRemoteSkillContext(remoteSkill, selectedTemplates, contextOptions.skillRouting)
   const system = [
     'You are an e-commerce image prompt editor using the live ecom-details-image skill from GitHub.',
     'Your job is conservative enhancement, not creative replacement.',
@@ -274,7 +286,7 @@ async function buildEcomOptimizerContext(input = {}, fetchImpl = fetch) {
     'Do not replace the user request with a generic e-commerce concept, campaign idea, lifestyle scene, or template-derived composition.',
     'Keep the original user intent visibly present near the beginning of the prompt. Add professional e-commerce photography constraints after it.',
     'Use SKILL.md and matched template JSON only as supporting guidance for product fidelity, lighting, scale, whitespace, realism, anti-AI artifacts, and platform-safe constraints.',
-    'If no template is selected, use only the general SKILL.md guidance and do not pretend a template matched.',
+    'When no keyword match is found, use the default hero image template from the skill instead of dropping template guidance.',
     'The prompt field and every prompts[].prompt value must be written in English for the image generation model, but preserve exact product names, visible text, brand-neutral descriptors, and user-specified terms when important.',
     'Return prompts[] only when the user explicitly asks for multiple distinct output images, an image set, Amazon/PDP/detail-page/full-set images, or count is greater than 1. Otherwise return one prompt and an empty prompts array.',
     'Treat every explicitly requested image count or image set as separate output images, not one canvas containing multiple images.',
@@ -303,6 +315,7 @@ async function buildEcomOptimizerContext(input = {}, fetchImpl = fetch) {
       warning: remoteSkill.warning || '',
       templateCount: remoteSkill.templates.length,
       selectedTemplateFiles: selectedTemplates.map((template) => template.fileName),
+      routing: contextOptions.skillRouting || null,
     },
   })
 
@@ -399,24 +412,186 @@ function selectRemoteTemplates(templates, input = {}) {
     .sort((a, b) => b.score - a.score || a.index - b.index)
     .map((item) => item.template)
   if (matched.length > 0) return matched.slice(0, 4)
-  return []
+  const defaultTemplate = templates.find((template) => template.fileName === DEFAULT_REMOTE_TEMPLATE_FILE_NAME)
+    || templates.find((template) => template.id === 'hero-image')
+    || templates[0]
+  return defaultTemplate ? [defaultTemplate] : []
 }
 
-function buildRemoteSkillContext(remoteSkill, selectedTemplates) {
-  const catalog = remoteSkill.templates.map((template) => ({
-    file: template.fileName,
+export function buildEcomSkillCatalog(remoteSkill = {}) {
+  const templates = Array.isArray(remoteSkill.templates) ? remoteSkill.templates : []
+  return templates.map((template) => ({
+    skill_id: template.fileName,
     id: template.id,
     name: template.name,
+    type: 'ecom-image-template',
     keywords: template.keywords,
     trigger_phrases: template.triggerPhrases,
+    supports_image_reference: template.supportsImageReference,
   }))
+}
+
+export function buildEcomSkillRouterResponsesRequest(input = {}, model = '', remoteSkill = {}) {
+  const trimmedModel = typeof model === 'string' ? model.trim() : ''
+  return {
+    model: trimmedModel,
+    instructions: [
+      'You are a skill routing agent for e-commerce image prompt optimization.',
+      'You can see the full catalog of available skill/template types, but not their full content yet.',
+      `Call ${SKILL_LOAD_TOOL_NAME} exactly once with the smallest useful set of skill_ids from the catalog.`,
+      `Select at most ${SKILL_ROUTER_MAX_SKILLS} skill_ids. Prefer the single best match unless the user asks for a multi-image set with distinct visual types.`,
+      `When nothing is specific enough, call ${SKILL_LOAD_TOOL_NAME} with ${DEFAULT_REMOTE_TEMPLATE_FILE_NAME}.`,
+      'Do not write the optimized prompt in this step. Only choose which skill contents must be loaded.',
+    ].join('\n'),
+    input: [{
+      role: 'user',
+      content: [{
+        type: 'input_text',
+        text: JSON.stringify({
+          userIntent: input.prompt || '',
+          mode: input.mode || 'generate',
+          aspectRatio: input.aspectRatio || 'auto',
+          resolution: input.resolution || 'auto',
+          count: clampCount(input.count),
+          hasReferenceImages: Boolean(input.hasReferenceImages),
+          skillSource: remoteSkill.source || `${ECOM_SKILL_REPO}@${ECOM_SKILL_BRANCH}`,
+          availableSkills: buildEcomSkillCatalog(remoteSkill),
+        }),
+      }],
+    }],
+    tools: [{
+      type: 'function',
+      name: SKILL_LOAD_TOOL_NAME,
+      description: 'Load full e-commerce image skill/template content by skill_id before prompt optimization.',
+      parameters: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          skill_ids: {
+            type: 'array',
+            items: { type: 'string' },
+            minItems: 1,
+            maxItems: SKILL_ROUTER_MAX_SKILLS,
+          },
+          reason: { type: 'string' },
+        },
+        required: ['skill_ids', 'reason'],
+      },
+      strict: true,
+    }],
+    tool_choice: { type: 'function', name: SKILL_LOAD_TOOL_NAME },
+    temperature: 0,
+    max_output_tokens: SKILL_ROUTER_MAX_OUTPUT_TOKENS,
+    stream: false,
+  }
+}
+
+export function resolveEcomSkillLoad(remoteSkill = {}, skillIds = [], input = {}) {
+  const templates = Array.isArray(remoteSkill.templates) ? remoteSkill.templates : []
+  const requestedIds = normalizeSkillIds(skillIds)
+  const selected = []
+  for (const skillId of requestedIds) {
+    const template = findTemplateBySkillId(templates, skillId)
+    if (template && !selected.some((item) => item.fileName === template.fileName)) selected.push(template)
+    if (selected.length >= SKILL_ROUTER_MAX_SKILLS) break
+  }
+  const selectedTemplates = selected.length > 0 ? selected : selectRemoteTemplates(templates, input)
+  return {
+    selectedTemplates,
+    selectedSkillIds: selectedTemplates.map((template) => template.fileName),
+    requestedSkillIds: requestedIds,
+  }
+}
+
+async function routeEcomSkillsWithAgent({ endpoint, headers, model, input = {}, remoteSkill, fetchImpl = fetch, onProgress } = {}) {
+  const fallback = () => {
+    const resolved = resolveEcomSkillLoad(remoteSkill, [], input)
+    return {
+      ...resolved,
+      skillRouting: {
+        mode: 'heuristic-fallback',
+        toolName: SKILL_LOAD_TOOL_NAME,
+        toolUsed: false,
+        requestedSkillIds: [],
+        selectedSkillIds: resolved.selectedSkillIds,
+        reason: 'Skill router unavailable; used local template selection.',
+        warning: '',
+      },
+    }
+  }
+
+  if (!remoteSkill?.templates?.length) return fallback()
+  onProgress?.({ stage: 'routing', phase: 'skill-routing', message: '意图模型正在选择 Skill' })
+  const request = buildEcomSkillRouterResponsesRequest(input, model, remoteSkill)
+  let result
+  try {
+    result = await postJson(fetchImpl, `${endpoint}/v1/responses`, { ...headers, Accept: 'application/json' }, request)
+  } catch (error) {
+    const resolved = fallback()
+    resolved.skillRouting.warning = error?.message || 'skill router request failed'
+    return resolved
+  }
+  if (!result.ok) {
+    const resolved = fallback()
+    resolved.skillRouting.warning = result.error || result.text || `skill router error (${result.status})`
+    return resolved
+  }
+
+  const calls = extractResponsesFunctionCalls(result.data, SKILL_LOAD_TOOL_NAME)
+  const toolArgs = calls.map((call) => parseToolArguments(call.arguments ?? call.args)).filter(Boolean)
+  const skillIds = toolArgs.flatMap((args) => Array.isArray(args.skill_ids) ? args.skill_ids : [])
+  const reason = toolArgs.map((args) => stringValue(args.reason)).filter(Boolean).join(' ')
+  const resolved = resolveEcomSkillLoad(remoteSkill, skillIds, input)
+  return {
+    ...resolved,
+    skillRouting: {
+      mode: 'agent-function-call',
+      toolName: SKILL_LOAD_TOOL_NAME,
+      toolUsed: calls.length > 0,
+      requestedSkillIds: resolved.requestedSkillIds,
+      selectedSkillIds: resolved.selectedSkillIds,
+      reason: reason || 'Skill router selected templates with load_skill.',
+      warning: calls.length > 0 ? '' : 'skill router did not call load_skill; used local template selection',
+    },
+  }
+}
+
+function parseToolArguments(value) {
+  if (value && typeof value === 'object') return value
+  if (typeof value === 'string') return parseJsonObject(value)
+  return null
+}
+
+function extractResponsesFunctionCalls(data, name) {
+  const output = Array.isArray(data?.output) ? data.output : []
+  return output.filter((item) => item?.type === 'function_call' && item.name === name)
+}
+
+function normalizeSkillIds(value) {
+  return (Array.isArray(value) ? value : [])
+    .filter((item) => typeof item === 'string' && item.trim())
+    .map((item) => item.trim())
+}
+
+function findTemplateBySkillId(templates, skillId) {
+  const normalized = skillId.replace(/^template:/i, '').replace(/^skill:/i, '').trim().toLowerCase()
+  return templates.find((template) => [template.fileName, template.id, template.name]
+    .filter(Boolean)
+    .some((value) => value.toLowerCase() === normalized)) || null
+}
+
+function buildRemoteSkillContext(remoteSkill, selectedTemplates, skillRouting = null) {
   const payload = {
     source: remoteSkill.source,
     loadedAt: remoteSkill.loadedAt,
     warning: remoteSkill.warning || '',
     skillMarkdown: remoteSkill.skillMarkdown || '',
-    templateCatalog: catalog,
     selectedTemplates,
+  }
+  if (skillRouting) {
+    payload.skillRouting = skillRouting
+  } else {
+    payload.templateCatalog = buildEcomSkillCatalog(remoteSkill)
   }
   return `Live ecom-details-image skill data:\n${truncateText(JSON.stringify(payload), ECOM_SKILL_MAX_CONTEXT_CHARS)}`
 }
