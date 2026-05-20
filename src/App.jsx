@@ -102,6 +102,7 @@ export default function App() {
 
   const [prompt, setPrompt] = useState('')
   const [referenceImages, setReferenceImages] = useState([])
+  const [selectedPreviousImageIds, setSelectedPreviousImageIds] = useState([])
   const [model, setModel] = useState('')
   const [mode, setMode] = useState(DEFAULT_GENERATION_SETTINGS.mode)
   const [aspectRatio, setAspectRatio] = useState(DEFAULT_GENERATION_SETTINGS.aspectRatio)
@@ -300,7 +301,7 @@ export default function App() {
     const turns = conversation?.turns || []
     for (let i = turns.length - 1; i >= 0; i -= 1) {
       const images = turns[i]?.status === 'success' ? turns[i].images || [] : []
-      const usableImages = images.filter((image) => image?.url)
+      const usableImages = images.filter((image) => image?.id && image?.url)
       if (usableImages.length > 0) return usableImages
     }
     return []
@@ -492,15 +493,16 @@ export default function App() {
       url: r.dataUrl,
       name: r.name,
     })).filter((ref) => isProviderImageUrl(ref.url))
-    const contextImages = manualRefs.length === 0 ? getLastConversationImages(conv) : []
+    const availableContextImages = getLastConversationImages(conv)
+    const contextImages = availableContextImages.filter((image) => selectedPreviousImageIds.includes(image.id))
     const contextRefs = []
     for (const [idx, image] of contextImages.entries()) {
       const url = await toProviderImageUrl(image.sourceUrl || image.url)
       if (url) contextRefs.push({ url, name: `previous-image-${idx + 1}` })
     }
-    const refs = manualRefs.length > 0 ? manualRefs : contextRefs
-    if (referenceImages.length > 0 && refs.length === 0) throw new Error('参考图必须是有效图片')
-    if (contextImages.length > 0 && refs.length === 0) throw new Error('上一张图片不能作为参考图，请重新上传')
+    const refs = [...manualRefs, ...contextRefs].slice(0, 8)
+    if (referenceImages.length > 0 && manualRefs.length === 0) throw new Error('参考图必须是有效图片')
+    if (contextImages.length > 0 && contextRefs.length === 0) throw new Error('所选上一轮图片不能作为参考图，请重新选择')
 
     const requestMode = refs.length > 0 ? 'edit' : mode
     const optimizedPrompt = await buildOptimizedPrompt({ submittedPrompt, requestMode, refs })
@@ -521,7 +523,7 @@ export default function App() {
       quality,
       needsReview: Boolean(optimizedPrompt),
     }
-  }, [aspectRatio, buildOptimizedPrompt, count, ensureActiveConversation, getLastConversationImages, imageModels, mode, model, prompt, quality, referenceImages, resolution])
+  }, [aspectRatio, buildOptimizedPrompt, count, ensureActiveConversation, getLastConversationImages, imageModels, mode, model, prompt, quality, referenceImages, resolution, selectedPreviousImageIds])
 
   const removeOptimizingTurn = useCallback((turnId) => {
     setOptimizingTurn((current) => current?.id === turnId ? null : current)
@@ -532,8 +534,8 @@ export default function App() {
       setShowLogin(true)
       return
     }
-    if (!prompt.trim() && referenceImages.length === 0) {
-      showError('请先输入提示词或上传参考图')
+    if (!prompt.trim() && referenceImages.length === 0 && selectedPreviousImageIds.length === 0) {
+      showError('请先输入提示词、上传参考图，或选择上一轮图片')
       return
     }
 
@@ -593,7 +595,7 @@ export default function App() {
         }))
       }
     }
-  }, [aspectRatio, createGenerationTurn, ensureActiveConversation, isConfigured, mode, model, prepareGenerationDraft, prompt, referenceImages, removeOptimizingTurn, resolution, showError, updateTurn])
+  }, [aspectRatio, createGenerationTurn, ensureActiveConversation, isConfigured, mode, model, prepareGenerationDraft, prompt, referenceImages, removeOptimizingTurn, resolution, selectedPreviousImageIds.length, showError, updateTurn])
 
   const handleConfirmPromptDraft = useCallback(async (editedPrompt = '') => {
     if (!pendingPromptDraft) return
@@ -731,13 +733,27 @@ export default function App() {
   }, [])
 
   const savedConversationTurns = conversations.find((c) => c.id === activeId)?.turns || []
+  const previousImages = getLastConversationImages({ turns: savedConversationTurns })
+  const selectedPreviousImages = previousImages.filter((image) => selectedPreviousImageIds.includes(image.id))
+
+  const togglePreviousImageSelection = useCallback((imageId) => {
+    if (!imageId || !previousImages.some((image) => image.id === imageId)) return
+    setSelectedPreviousImageIds((current) => {
+      const visibleCurrent = current.filter((id) => previousImages.some((image) => image.id === id))
+      const exists = visibleCurrent.includes(imageId)
+      const next = exists ? visibleCurrent.filter((id) => id !== imageId) : [...visibleCurrent, imageId]
+      if (next.length > 0) setMode('edit')
+      return next
+    })
+  }, [previousImages])
+
   const activeOptimizingTurn = optimizingTurn?.conversationId === activeId ? optimizingTurn : null
   const activeConversationTurns = activeOptimizingTurn ? [...savedConversationTurns, activeOptimizingTurn] : savedConversationTurns
   const activeConversationBusy = activeConversationTurns.some((turn) => (turn.status === 'pending' && turn.jobId) || turn.status === 'optimizing')
     || submittingConversationId === activeId
     || (activeId == null && submittingConversationId != null)
-  const hasContextImage = getLastConversationImages({ turns: savedConversationTurns }).length > 0
-  const effectiveMode = referenceImages.length > 0 || hasContextImage ? 'edit' : mode
+  const hasSelectedPreviousImage = selectedPreviousImages.length > 0
+  const effectiveMode = referenceImages.length > 0 || hasSelectedPreviousImage ? 'edit' : mode
   const displayView = prompt.trim() || referenceImages.length > 0 || activeConversationBusy || activeConversationTurns.length > 0
 
   return (
@@ -954,9 +970,12 @@ export default function App() {
               onSubmit={handleSubmit}
               prompt={prompt}
               optimizerModel={promptOptimizerModel}
+              previousImages={previousImages}
               quality={quality}
               referenceImages={referenceImages}
               resolution={resolution}
+              selectedPreviousImageIds={selectedPreviousImages.map((image) => image.id)}
+              onTogglePreviousImage={togglePreviousImageSelection}
             />
           </div>
         )}

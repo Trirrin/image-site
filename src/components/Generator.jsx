@@ -18,6 +18,7 @@ const MODE_OPTIONS = [
 export default function Generator({
   prompt, onPromptChange, onSubmit, isBusy,
   referenceImages, onReferenceImagesChange,
+  previousImages = [], selectedPreviousImageIds = [], onTogglePreviousImage,
   models, model, onModelChange,
   mode, onModeChange,
   aspectRatio, onAspectRatioChange,
@@ -67,7 +68,8 @@ export default function Generator({
     QUALITY_OPTIONS.find((q) => q.value === quality)?.label ?? 'High',
     [quality])
 
-  const canSubmit = !isBusy && (prompt.trim().length > 0 || referenceImages.length > 0)
+  const selectedPreviousCount = selectedPreviousImageIds.length
+  const canSubmit = !isBusy && (prompt.trim().length > 0 || referenceImages.length > 0 || selectedPreviousCount > 0)
 
   const addImagesFromFiles = useCallback(async (files) => {
     const imageFiles = Array.from(files).filter(isImageFile)
@@ -162,27 +164,64 @@ export default function Generator({
         onDrop={handleDrop}
         onPaste={handlePaste}
       >
-        {referenceImages.length > 0 && (
-          <div className="flex flex-wrap items-center gap-2 px-3 pb-2 pt-2">
-            {referenceImages.map((img, idx) => (
-              <div key={`${idx}-${img.name}`} className="group relative h-14 w-14 overflow-hidden rounded-xl border border-white bg-white shadow-sm">
-                <img alt={img.name} className="h-full w-full object-cover" src={img.dataUrl} />
-                {idx === 0 && (
-                  <span className="absolute left-0.5 top-0.5 rounded-full bg-champagne px-1.5 py-0 text-[9px] font-medium text-white">主图</span>
-                )}
-                <button
-                  aria-label="移除参考图"
-                  className="absolute right-0.5 top-0.5 grid h-5 w-5 place-items-center rounded-full bg-charcoal/75 text-white opacity-0 transition group-hover:opacity-100"
-                  onClick={() => removeImage(idx)}
-                  type="button"
-                >
-                  <X size={10} />
-                </button>
+        {(previousImages.length > 0 || referenceImages.length > 0) && (
+          <div className="flex flex-col gap-3 px-3 pb-2 pt-2">
+            {previousImages.length > 0 && (
+              <div className="rounded-2xl border border-borderSoft/70 bg-white/70 p-2.5">
+                <div className="mb-2 flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-[12px] font-medium text-charcoal">上一轮图片</p>
+                    <p className="text-[11px] text-stoneText">只会带入你选中的图片，不再自动全带</p>
+                  </div>
+                  <span className="text-[11px] text-stoneText">已选 {selectedPreviousCount} / {previousImages.length}</span>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {previousImages.map((img, idx) => {
+                    const selected = selectedPreviousImageIds.includes(img.id)
+                    return (
+                      <button
+                        key={img.id || `previous-${idx}`}
+                        aria-pressed={selected}
+                        className={`group relative h-16 w-16 overflow-hidden rounded-xl border transition ${
+                          selected ? 'border-champagne ring-2 ring-amberSoft' : 'border-borderSoft/80 hover:border-champagne/60'
+                        }`}
+                        onClick={() => onTogglePreviousImage?.(img.id)}
+                        type="button"
+                      >
+                        <img alt={`上一轮图片 ${idx + 1}`} className="h-full w-full object-cover" src={img.sourceUrl || img.url} />
+                        <span className={`absolute inset-x-0 bottom-0 px-1 py-0.5 text-center text-[9px] font-medium ${selected ? 'bg-champagne text-white' : 'bg-charcoal/55 text-white/90'}`}>
+                          {selected ? '已带入' : '点击带入'}
+                        </span>
+                      </button>
+                    )
+                  })}
+                </div>
               </div>
-            ))}
-            <span className="text-[11px] text-stoneText">
-              {referenceImages.length}/{MAX_REFERENCE_IMAGES} · 第 1 张作为主参考
-            </span>
+            )}
+
+            {referenceImages.length > 0 && (
+              <div className="flex flex-wrap items-center gap-2">
+                {referenceImages.map((img, idx) => (
+                  <div key={`${idx}-${img.name}`} className="group relative h-14 w-14 overflow-hidden rounded-xl border border-white bg-white shadow-sm">
+                    <img alt={img.name} className="h-full w-full object-cover" src={img.dataUrl} />
+                    {idx === 0 && (
+                      <span className="absolute left-0.5 top-0.5 rounded-full bg-champagne px-1.5 py-0 text-[9px] font-medium text-white">主图</span>
+                    )}
+                    <button
+                      aria-label="移除参考图"
+                      className="absolute right-0.5 top-0.5 grid h-5 w-5 place-items-center rounded-full bg-charcoal/75 text-white opacity-0 transition group-hover:opacity-100"
+                      onClick={() => removeImage(idx)}
+                      type="button"
+                    >
+                      <X size={10} />
+                    </button>
+                  </div>
+                ))}
+                <span className="text-[11px] text-stoneText">
+                  上传 {referenceImages.length}/{MAX_REFERENCE_IMAGES} · 第 1 张作为主参考
+                </span>
+              </div>
+            )}
           </div>
         )}
 
