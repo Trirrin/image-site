@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { Search, ChevronDown, GalleryHorizontalEnd, Trash2, Download, ExternalLink } from 'lucide-react'
 import Popover, { PopoverItem } from './Popover'
 import FallbackImage from './FallbackImage'
+import { loadImageBlob } from '../storage/conversationStore'
 import { formatBytes, formatDimensions, truncatePrompt, formatDate, classifyOrientation, getImageMeta } from '../utils/image'
 
 const LIBRARY_PAGE_SIZE = 60
@@ -22,7 +23,7 @@ export default function Library({
       for (const turn of conv.turns || []) {
         if (turn.status !== 'success') continue
         for (const img of turn.images || []) {
-          if (img.url) {
+          if (img.url || img.localImageId) {
             result.push({
               image: img,
               conversationId: conv.id,
@@ -76,12 +77,20 @@ export default function Library({
     let url = primaryUrl
     let blobUrl = ''
     try {
-      const res = await fetch(primaryUrl)
-      if (!res.ok && fallbackUrl !== primaryUrl) throw new Error('primary image unavailable')
-      if (res.ok) {
-        const blob = await res.blob()
-        blobUrl = URL.createObjectURL(blob)
-        url = blobUrl
+      if (!primaryUrl && item.image.localImageId) {
+        const blob = await loadImageBlob(item.image.localImageId)
+        if (blob) {
+          blobUrl = URL.createObjectURL(blob)
+          url = blobUrl
+        }
+      } else {
+        const res = await fetch(primaryUrl)
+        if (!res.ok && fallbackUrl !== primaryUrl) throw new Error('primary image unavailable')
+        if (res.ok) {
+          const blob = await res.blob()
+          blobUrl = URL.createObjectURL(blob)
+          url = blobUrl
+        }
       }
     } catch {
       url = fallbackUrl
@@ -201,11 +210,11 @@ function ImageCard({ item, onPreview, onDelete, onDownload, onJump }) {
 
   useEffect(() => {
     let cancelled = false
-    getImageMeta(item.image.url).then((m) => {
+    getImageMeta(item.image.url || item.image.sourceUrl).then((m) => {
       if (!cancelled) { setMeta(m); setMetaLoaded(true) }
     })
     return () => { cancelled = true }
-  }, [item.image.url])
+  }, [item.image.sourceUrl, item.image.url])
 
   const dim = metaLoaded ? formatDimensions(meta.width, meta.height) : (item.turnSize || item.turnAspectRatio || '')
   const size = meta.size ? formatBytes(meta.size) : ''

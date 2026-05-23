@@ -1,6 +1,7 @@
 import { useEffect, useCallback } from 'react'
 import { X, ChevronLeft, ChevronRight, Download, ExternalLink } from 'lucide-react'
 import FallbackImage from './FallbackImage'
+import { loadImageBlob } from '../storage/conversationStore'
 
 export default function ImagePreview({ open, items, index, onClose, onIndexChange }) {
   useEffect(() => {
@@ -20,12 +21,20 @@ export default function ImagePreview({ open, items, index, onClose, onIndexChang
     let url = primaryUrl
     let blobUrl = ''
     try {
-      const res = await fetch(primaryUrl)
-      if (!res.ok && fallbackUrl !== primaryUrl) throw new Error('primary image unavailable')
-      if (res.ok) {
-        const blob = await res.blob()
-        blobUrl = URL.createObjectURL(blob)
-        url = blobUrl
+      if (!primaryUrl && item.image.localImageId) {
+        const blob = await loadImageBlob(item.image.localImageId)
+        if (blob) {
+          blobUrl = URL.createObjectURL(blob)
+          url = blobUrl
+        }
+      } else {
+        const res = await fetch(primaryUrl)
+        if (!res.ok && fallbackUrl !== primaryUrl) throw new Error('primary image unavailable')
+        if (res.ok) {
+          const blob = await res.blob()
+          blobUrl = URL.createObjectURL(blob)
+          url = blobUrl
+        }
       }
     } catch {
       url = fallbackUrl
@@ -94,7 +103,10 @@ export default function ImagePreview({ open, items, index, onClose, onIndexChang
               <button
                 aria-label="打开原图"
                 className="grid h-10 w-10 place-items-center rounded-full bg-white/20 text-white transition hover:bg-white/45"
-                onClick={() => window.open(item.image.sourceUrl || item.image.url, '_blank')}
+                onClick={() => {
+                  const url = item.image.sourceUrl || item.image.url
+                  if (url) window.open(url, '_blank')
+                }}
                 type="button"
               >
                 <ExternalLink size={18} />

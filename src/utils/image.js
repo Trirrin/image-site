@@ -101,6 +101,22 @@ export function readFileAsDataURL(file) {
   })
 }
 
+export function dataUrlByteSize(dataUrl) {
+  if (typeof dataUrl !== 'string') return 0
+  const comma = dataUrl.indexOf(',')
+  if (comma < 0) return 0
+  const body = dataUrl.slice(comma + 1)
+  if (!body) return 0
+  const padding = body.endsWith('==') ? 2 : body.endsWith('=') ? 1 : 0
+  return Math.max(0, Math.floor((body.length * 3) / 4) - padding)
+}
+
+export function referenceImageByteSize(image) {
+  if (!image) return 0
+  if (Number.isFinite(image.byteSize)) return image.byteSize
+  return dataUrlByteSize(image.dataUrl)
+}
+
 export function isImageFile(file) {
   return file.type.startsWith('image/') || /\.(avif|bmp|gif|heic|heif|jpeg|jpg|png|svg|webp)$/i.test(file.name)
 }

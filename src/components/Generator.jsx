@@ -6,9 +6,9 @@ import {
 import Popover, { PopoverItem } from './Popover'
 import {
   ASPECT_RATIOS, RESOLUTIONS, QUALITY_OPTIONS, IMAGE_COUNTS,
-  MAX_REFERENCE_IMAGES,
+  MAX_REFERENCE_IMAGES, MAX_REFERENCE_IMAGE_BYTES, MAX_REFERENCE_IMAGE_TOTAL_BYTES,
 } from '../utils/constants'
-import { readFileAsDataURL, isImageFile } from '../utils/image'
+import { readFileAsDataURL, isImageFile, formatBytes, referenceImageByteSize, dataUrlByteSize } from '../utils/image'
 
 const MODE_OPTIONS = [
   { value: 'generate', label: '生成' },
@@ -28,6 +28,7 @@ export default function Generator({
   ecomSkillAvailable = false, ecomSkillEnabled, onEcomSkillEnabledChange,
   optimizerModels = [], optimizerModel, onOptimizerModelChange,
   onOpenPromptMarket,
+  onReferenceImageError,
 }) {
   const [dragOver, setDragOver] = useState(false)
   const [modelOpen, setModelOpen] = useState(false)
@@ -70,6 +71,14 @@ export default function Generator({
 
   const selectedPreviousCount = selectedPreviousImageIds.length
   const canSubmit = !isBusy && (prompt.trim().length > 0 || referenceImages.length > 0 || selectedPreviousCount > 0)
+  const currentReferenceBytes = useMemo(
+    () => referenceImages.reduce((sum, image) => sum + referenceImageByteSize(image), 0),
+    [referenceImages]
+  )
+
+  const reportReferenceLimit = useCallback((reason) => {
+    onReferenceImageError?.(reason)
+  }, [onReferenceImageError])
 
   const addImagesFromFiles = useCallback(async (files) => {
     const imageFiles = Array.from(files).filter(isImageFile)
@@ -77,32 +86,61 @@ export default function Generator({
     const remaining = Math.max(0, MAX_REFERENCE_IMAGES - referenceImages.length)
     const toProcess = imageFiles.slice(0, remaining)
     const added = []
+    let totalBytes = currentReferenceBytes
+    let skipped = 0
     for (const file of toProcess) {
-      const dataUrl = await readFileAsDataURL(file).catch(() => null)
-      if (dataUrl) {
-        added.push({ name: file.name, type: file.type || 'image/png', dataUrl, source: 'upload' })
+      if (file.size > MAX_REFERENCE_IMAGE_BYTES || totalBytes + file.size > MAX_REFERENCE_IMAGE_TOTAL_BYTES) {
+        skipped += 1
+        continue
       }
+      const dataUrl = await readFileAsDataURL(file).catch(() => null)
+      const byteSize = file.size || dataUrlByteSize(dataUrl)
+      if (!dataUrl || byteSize > MAX_REFERENCE_IMAGE_BYTES || totalBytes + byteSize > MAX_REFERENCE_IMAGE_TOTAL_BYTES) {
+        skipped += 1
+        continue
+      }
+      totalBytes += byteSize
+      added.push({ name: file.name, type: file.type || 'image/png', dataUrl, source: 'upload', byteSize })
     }
+    if (skipped > 0) reportReferenceLimit(`参考图过大，单张最多 ${formatBytes(MAX_REFERENCE_IMAGE_BYTES)}，总计最多 ${formatBytes(MAX_REFERENCE_IMAGE_TOTAL_BYTES)}`)
     if (added.length) onReferenceImagesChange([...referenceImages, ...added])
-  }, [referenceImages, onReferenceImagesChange])
+  }, [currentReferenceBytes, referenceImages, onReferenceImagesChange, reportReferenceLimit])
 
   const addImagesFromUrls = useCallback(async (urls) => {
     const remaining = Math.max(0, MAX_REFERENCE_IMAGES - referenceImages.length)
     const toProcess = urls.slice(0, remaining)
     const added = []
+    let totalBytes = currentReferenceBytes
+    let skipped = 0
     for (const url of toProcess) {
       try {
         const res = await fetch(url)
         if (!res.ok) continue
+        const length = Number(res.headers.get('Content-Length') || 0)
+        if (length > MAX_REFERENCE_IMAGE_BYTES || totalBytes + length > MAX_REFERENCE_IMAGE_TOTAL_BYTES) {
+          skipped += 1
+          continue
+        }
         const blob = await res.blob()
         if (!blob.type.startsWith('image/')) continue
+        if (blob.size > MAX_REFERENCE_IMAGE_BYTES || totalBytes + blob.size > MAX_REFERENCE_IMAGE_TOTAL_BYTES) {
+          skipped += 1
+          continue
+        }
         const dataUrl = await readFileAsDataURL(blob)
+        const byteSize = blob.size || dataUrlByteSize(dataUrl)
+        if (!dataUrl || byteSize > MAX_REFERENCE_IMAGE_BYTES || totalBytes + byteSize > MAX_REFERENCE_IMAGE_TOTAL_BYTES) {
+          skipped += 1
+          continue
+        }
+        totalBytes += byteSize
         const name = url.split('/').pop()?.split('?')[0] || 'image.png'
-        added.push({ name, type: blob.type, dataUrl, source: 'url' })
+        added.push({ name, type: blob.type, dataUrl, source: 'url', byteSize })
       } catch { /* skip invalid urls */ }
     }
+    if (skipped > 0) reportReferenceLimit(`参考图过大，单张最多 ${formatBytes(MAX_REFERENCE_IMAGE_BYTES)}，总计最多 ${formatBytes(MAX_REFERENCE_IMAGE_TOTAL_BYTES)}`)
     if (added.length) onReferenceImagesChange([...referenceImages, ...added])
-  }, [referenceImages, onReferenceImagesChange])
+  }, [currentReferenceBytes, referenceImages, onReferenceImagesChange, reportReferenceLimit])
 
   const handleDrop = useCallback((e) => {
     e.preventDefault()

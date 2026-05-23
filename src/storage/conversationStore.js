@@ -1,9 +1,10 @@
 const DB_NAME = 'image-site'
-const DB_VERSION = 2
+const DB_VERSION = 3
 const CONVERSATION_STORE = 'conversations'
 const IMAGE_STORE = 'images'
 const META_STORE = 'meta'
 const ACTIVE_ID_KEY = 'activeConversationId'
+const COMPACTED_INLINE_IMAGES_KEY = 'compactedInlineImagesV1'
 
 const LEGACY_CONVERSATIONS_KEY = 'image-site:conversations'
 const LEGACY_ACTIVE_KEY = 'image-site:active-conversation-id'
@@ -113,6 +114,49 @@ function imageKey(conversationId, turnId, imageId) {
   return `${conversationId}:${turnId}:${imageId}`
 }
 
+function isInlineImageUrl(url) {
+  return typeof url === 'string' && (/^data:image\//i.test(url) || url.startsWith('blob:'))
+}
+
+function isPersistentImageUrl(url) {
+  if (typeof url !== 'string') return false
+  try {
+    const parsed = new URL(url)
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:'
+  } catch {
+    return false
+  }
+}
+
+function persistentImageUrl(...urls) {
+  return urls.find(isPersistentImageUrl) || ''
+}
+
+function revokeObjectUrl(id) {
+  const url = objectUrls.get(id)
+  if (url) URL.revokeObjectURL(url)
+  objectUrls.delete(id)
+}
+
+function releaseObjectUrlsExcept(retainedIds) {
+  if (!isBrowser()) return
+  for (const id of objectUrls.keys()) {
+    if (!retainedIds.has(id)) revokeObjectUrl(id)
+  }
+}
+
+function collectConversationImageIds(conversation) {
+  const ids = new Set()
+  if (!conversation?.id) return ids
+  for (const turn of conversation.turns || []) {
+    for (const image of turn.images || []) {
+      const id = image.localImageId || (image.id ? imageKey(conversation.id, turn.id, image.id) : '')
+      if (id) ids.add(id)
+    }
+  }
+  return ids
+}
+
 function parseDataUrl(url) {
   const match = typeof url === 'string' ? url.match(/^data:([^;,]+)?(;base64)?,(.*)$/) : null
   if (!match) return null
@@ -190,9 +234,7 @@ async function deleteImageRecord(db, id) {
   const transaction = db.transaction(IMAGE_STORE, 'readwrite')
   transaction.objectStore(IMAGE_STORE).delete(id)
   await txDone(transaction)
-  const url = objectUrls.get(id)
-  if (url) URL.revokeObjectURL(url)
-  objectUrls.delete(id)
+  revokeObjectUrl(id)
 }
 
 async function localizeImage(db, conversationId, turn, image) {
@@ -200,7 +242,8 @@ async function localizeImage(db, conversationId, turn, image) {
   const id = imageKey(conversationId, turn.id, image.id)
   const existing = await loadImageRecord(db, id)
   if (existing?.blob) {
-    return { ...image, url: objectUrlFor(id, existing.blob), sourceUrl: existing.sourceUrl || image.sourceUrl || image.url }
+    const sourceUrl = persistentImageUrl(existing.sourceUrl, image.sourceUrl, image.url)
+    return { ...image, url: objectUrlFor(id, existing.blob), sourceUrl }
   }
 
   const blob = await fetchImageBlob(image.url)
@@ -212,11 +255,11 @@ async function localizeImage(db, conversationId, turn, image) {
     turnId: turn.id,
     imageId: image.id,
     blob,
-    sourceUrl: image.sourceUrl || image.url,
+    sourceUrl: persistentImageUrl(image.sourceUrl, image.url),
     createdAt: image.createdAt || turn.createdAt || new Date().toISOString(),
   })
 
-  return { ...image, url: objectUrlFor(id, blob), sourceUrl: image.sourceUrl || image.url }
+  return { ...image, url: objectUrlFor(id, blob), sourceUrl: persistentImageUrl(image.sourceUrl, image.url) }
 }
 
 async function localizeConversationImages(db, conversation) {
@@ -264,13 +307,15 @@ async function hydrateConversationImages(db, conversation) {
       images.push(record?.blob ? {
         ...image,
         url: objectUrlFor(id, record.blob),
-        sourceUrl: record.sourceUrl || image.sourceUrl || image.url,
+        sourceUrl: persistentImageUrl(record.sourceUrl, image.sourceUrl, image.url),
       } : image)
     }
     turns.push({ ...turn, images })
   }
 
-  return { ...normalized, turns }
+  const hydrated = { ...normalized, turns }
+  releaseObjectUrlsExcept(collectConversationImageIds(hydrated))
+  return hydrated
 }
 
 async function deleteConversationImages(db, conversation) {
@@ -301,7 +346,7 @@ async function deleteRemovedImages(db, previous, next) {
   }
 }
 
-function stripTransientImageUrls(conversation) {
+export function stripTransientImageUrls(conversation) {
   const normalized = normalizeConversation(conversation)
   if (!normalized) return null
   return {
@@ -311,10 +356,15 @@ function stripTransientImageUrls(conversation) {
       images: (turn.images || []).map((image) => {
         if (!image?.id) return image
         const localImageId = image.localImageId || imageKey(normalized.id, turn.id, image.id)
+        const persistedUrl = persistentImageUrl(image.sourceUrl, image.url)
+        const rest = { ...image }
+        delete rest.url
+        delete rest.sourceUrl
         return {
-          ...image,
+          ...rest,
           localImageId,
-          url: image.sourceUrl || image.url,
+          url: persistedUrl,
+          sourceUrl: persistedUrl,
         }
       }),
     })),
@@ -327,6 +377,38 @@ async function ensureMigrated() {
 
   migrationPromise = (async () => {
     const db = await openDb()
+    const compactStoredInlineImages = async () => {
+      const flagTransaction = db.transaction(META_STORE, 'readonly')
+      const flagDone = txDone(flagTransaction)
+      const flag = await requestResult(flagTransaction.objectStore(META_STORE).get(COMPACTED_INLINE_IMAGES_KEY))
+      await flagDone
+      if (flag?.value === '1') return
+
+      const transaction = db.transaction([CONVERSATION_STORE, IMAGE_STORE, META_STORE], 'readwrite')
+      const conversations = transaction.objectStore(CONVERSATION_STORE)
+      const images = transaction.objectStore(IMAGE_STORE)
+      const meta = transaction.objectStore(META_STORE)
+
+      conversations.openCursor().onsuccess = (event) => {
+        const cursor = event.target.result
+        if (!cursor) return
+        const compacted = stripTransientImageUrls(cursor.value)
+        if (compacted) cursor.update(compacted)
+        cursor.continue()
+      }
+
+      images.openCursor().onsuccess = (event) => {
+        const cursor = event.target.result
+        if (!cursor) return
+        const record = cursor.value
+        if (isInlineImageUrl(record?.sourceUrl)) cursor.update({ ...record, sourceUrl: '' })
+        cursor.continue()
+      }
+
+      meta.put({ key: COMPACTED_INLINE_IMAGES_KEY, value: '1' })
+      await txDone(transaction)
+    }
+
     if (!db) {
       memoryConversations = readLegacyConversations()
       memoryActiveId = readLegacyActiveId()
@@ -335,22 +417,25 @@ async function ensureMigrated() {
 
     const legacyItems = readLegacyConversations()
     const legacyActiveId = readLegacyActiveId()
-    if (legacyItems.length === 0 && !legacyActiveId) return
+    if (legacyItems.length > 0 || legacyActiveId) {
+      const localizedItems = []
+      for (const item of legacyItems) {
+        localizedItems.push(stripTransientImageUrls(await localizeConversationImages(db, item)))
+      }
 
-    const localizedItems = []
-    for (const item of legacyItems) {
-      localizedItems.push(stripTransientImageUrls(await localizeConversationImages(db, item)))
+      const transaction = db.transaction([CONVERSATION_STORE, META_STORE], 'readwrite')
+      const conversations = transaction.objectStore(CONVERSATION_STORE)
+      const meta = transaction.objectStore(META_STORE)
+
+      for (const item of localizedItems.filter(Boolean)) conversations.put(item)
+      meta.put({ key: ACTIVE_ID_KEY, value: legacyActiveId || '' })
+
+      await txDone(transaction)
+      clearLegacyStorage()
     }
 
-    const transaction = db.transaction([CONVERSATION_STORE, META_STORE], 'readwrite')
-    const conversations = transaction.objectStore(CONVERSATION_STORE)
-    const meta = transaction.objectStore(META_STORE)
-
-    for (const item of localizedItems.filter(Boolean)) conversations.put(item)
-    meta.put({ key: ACTIVE_ID_KEY, value: legacyActiveId || '' })
-
-    await txDone(transaction)
-    clearLegacyStorage()
+    await compactStoredInlineImages()
+    releaseObjectUrlsExcept(new Set())
   })()
 
   return migrationPromise
@@ -367,6 +452,15 @@ export async function listConversations() {
   await done
 
   return sortConversations((items || []).map(normalizeConversation).filter(Boolean))
+}
+
+export async function loadImageBlob(id) {
+  await ensureMigrated()
+  if (!id) return null
+  const db = await openDb()
+  if (!db) return null
+  const record = await loadImageRecord(db, id)
+  return record?.blob || null
 }
 
 export async function getConversation(id) {
@@ -390,6 +484,7 @@ export async function saveConversation(conversation) {
   const localized = await localizeConversationImages(db, normalized)
   const stored = stripTransientImageUrls(localized)
   await deleteRemovedImages(db, previous, stored)
+  releaseObjectUrlsExcept(collectConversationImageIds(localized))
 
   const transaction = db.transaction(CONVERSATION_STORE, 'readwrite')
   transaction.objectStore(CONVERSATION_STORE).put(stored)

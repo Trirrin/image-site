@@ -1,4 +1,6 @@
 export const MAX_REFERENCE_IMAGES = 8
+export const MAX_REFERENCE_IMAGE_BYTES = 20 * 1024 * 1024
+export const MAX_REFERENCE_IMAGE_TOTAL_BYTES = 48 * 1024 * 1024
 
 export const ASPECT_RATIOS = [
   { value: '', label: 'Auto' },

@@ -727,6 +727,12 @@ export default function App() {
     setPreviewOpen(true)
   }, [])
 
+  const handleClosePreview = useCallback(() => {
+    setPreviewOpen(false)
+    setPreviewItems([])
+    setPreviewIndex(0)
+  }, [])
+
   const handleReferenceImagesChange = useCallback((images) => {
     setReferenceImages(images)
     if (images.length > 0) setMode('edit')
@@ -888,7 +894,7 @@ export default function App() {
                             turn.images.length === 1 ? 'grid-cols-1' :
                             'grid-cols-2'
                           }`}>
-                            {turn.images.map((img) => (
+                            {turn.images.map((img, idx) => (
                               <FallbackImage
                                 key={img.id}
                                 alt={turn.prompt}
@@ -908,7 +914,7 @@ export default function App() {
                                     turnCreatedAt: turn.createdAt,
                                   }))
                                   setPreviewItems(items)
-                                  setPreviewIndex(0)
+                                  setPreviewIndex(idx)
                                   setPreviewOpen(true)
                                 }}
                               />
@@ -965,6 +971,7 @@ export default function App() {
               onOpenPromptMarket={() => setPromptMarketOpen(true)}
               onPromptChange={setPrompt}
               onQualityChange={setQuality}
+              onReferenceImageError={showError}
               onReferenceImagesChange={handleReferenceImagesChange}
               onResolutionChange={setResolution}
               onSubmit={handleSubmit}
@@ -1041,7 +1048,7 @@ export default function App() {
         <ImagePreview
           index={previewIndex}
           items={previewItems}
-          onClose={() => setPreviewOpen(false)}
+          onClose={handleClosePreview}
           onIndexChange={setPreviewIndex}
           open={previewOpen}
         />
