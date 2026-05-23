@@ -48,8 +48,11 @@ Thumbs.db
 !.vscode/launch.json
 
 # Local agent/config state
-.claude/settings.local.json
+.claude/
 .codex
+
+# Private deployment notes
+DEPLOY.md
 
 # Generated archives
 *.zip

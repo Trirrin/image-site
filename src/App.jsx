@@ -17,12 +17,13 @@ import { usePromptFavorites } from './hooks/usePromptFavorites'
 import { getSize, readFileAsDataURL } from './utils/image'
 import { IMAGE_MODEL_REGEX, OPTIMIZER_MODEL_REGEX } from './utils/constants'
 import { applyPromptReviewEdit } from './utils/promptOptimization'
+import { buildJobPromptText } from './utils/promptComposition'
 
 const activeJobPollers = new Map()
 const JOB_POLL_INTERVAL_MS = 5000
 const JOB_POLL_TIMEOUT_MS = 30 * 60 * 1000
 const MISSING_JOB_ERROR = '生成任务未创建，请重试'
-const ECOM_SKILL_FAILURE_MESSAGE = '电商 Skill 优化失败。请关闭「电商 Skill」后再直接生图。'
+const ECOM_SKILL_FAILURE_MESSAGE = '提示词处理失败，请直接生图。'
 const DEFAULT_GENERATION_SETTINGS = {
   mode: 'generate',
   aspectRatio: '',
@@ -60,34 +61,6 @@ async function toProviderImageUrl(url) {
   }
 }
 
-function normalizeOptimizedPromptItems(prompts) {
-  if (!Array.isArray(prompts)) return []
-  return prompts.map((item) => {
-    if (typeof item === 'string') return item.trim()
-    return typeof item?.prompt === 'string' ? item.prompt.trim() : ''
-  }).filter(Boolean)
-}
-
-function promptTextIncludesItem(text, item) {
-  if (!text || !item) return false
-  const needle = item.length > 80 ? item.slice(0, 80) : item
-  return text.includes(needle)
-}
-
-function buildJobPromptText(optimizedPrompt, fallbackPrompt) {
-  const fallback = typeof fallbackPrompt === 'string' ? fallbackPrompt.trim() : ''
-  const prompt = typeof optimizedPrompt?.prompt === 'string' ? optimizedPrompt.prompt.trim() : ''
-  const items = normalizeOptimizedPromptItems(optimizedPrompt?.prompts)
-  if (items.length === 0) return { prompt: prompt || fallback }
-
-  const lead = prompt && !items.some((item) => promptTextIncludesItem(prompt, item)) ? prompt : fallback
-  const opener = lead
-    ? `Create ${items.length} separate output images, one image per numbered prompt below. Do not combine these prompts into one collage, grid, contact sheet, storyboard, or multi-panel image. ${lead}`
-    : `Create ${items.length} separate output images, one image per numbered prompt below. Do not combine these prompts into one collage, grid, contact sheet, storyboard, or multi-panel image.`
-  return {
-    prompt: [opener, ...items.map((item, index) => `Output image ${index + 1}: ${item}`)].join('\n\n'),
-  }
-}
 
 export default function App() {
   const { config, updateConfig, isConfigured, promptOptimizerModel, updatePromptOptimizerModel } = useSettings()
@@ -109,7 +82,6 @@ export default function App() {
   const [resolution, setResolution] = useState(DEFAULT_GENERATION_SETTINGS.resolution)
   const [count, setCount] = useState(DEFAULT_GENERATION_SETTINGS.count)
   const [quality, setQuality] = useState(DEFAULT_GENERATION_SETTINGS.quality)
-  const [useEcomSkill, setUseEcomSkill] = useState(false)
   const [submittingConversationId, setSubmittingConversationId] = useState(null)
   const [pendingPromptDraft, setPendingPromptDraft] = useState(null)
   const [optimizerStatus, setOptimizerStatus] = useState('')
@@ -230,8 +202,7 @@ export default function App() {
     () => models.filter((item) => OPTIMIZER_MODEL_REGEX.test(item.model_key)),
     [models]
   )
-  const optimizerAvailable = optimizerModels.length > 0
-  const ecomSkillActive = useEcomSkill && optimizerAvailable
+  const ecomSkillActive = false
 
 
   useEffect(() => {
@@ -249,7 +220,7 @@ export default function App() {
     if (!ecomSkillActive) return null
     const optimizerModel = resolveOptimizerModel()
     if (!optimizerModel) throw new Error(ECOM_SKILL_FAILURE_MESSAGE)
-    setOptimizerStatus('意图模型正在优化提示词')
+    setOptimizerStatus('正在准备提示词')
     let optimized
     try {
       const result = await optimizePromptStream({
@@ -857,14 +828,8 @@ export default function App() {
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0 flex-1">
                             <p className="text-sm font-medium text-charcoal">{turn.originalPrompt || turn.prompt || '（空提示词）'}</p>
-                            {turn.optimizedPrompt?.prompt && turn.optimizedPrompt.prompt !== turn.originalPrompt && (
-                              <details className="mt-2 rounded-xl border border-borderSoft/70 bg-pearl/80 px-3 py-2 text-xs text-stoneText">
-                                <summary className="cursor-pointer font-medium text-charcoal">已用电商 Skill 优化提示词</summary>
-                                <p className="mt-2 whitespace-pre-wrap leading-5">{turn.optimizedPrompt.prompt}</p>
-                              </details>
-                            )}
                             <p className="mt-1 text-[11px] text-stoneText">
-                              {turn.model && `${turn.model} · `}{turn.size || turn.resolution || ''}{turn.optimizedPrompt?.model ? ` · 意图模型 ${turn.optimizedPrompt.model}` : ''}
+                              {turn.model && `${turn.model} · `}{turn.size || turn.resolution || ''}
                             </p>
                           </div>
                           <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-[10px] font-medium ${
@@ -872,7 +837,7 @@ export default function App() {
                             turn.status === 'error' ? 'bg-red-50 text-red-700' :
                             'bg-amber-50 text-amber-700'
                           }`}>
-                            {turn.status === 'success' ? '已完成' : turn.status === 'error' ? '失败' : turn.status === 'optimizing' ? '优化中' : '生成中'}
+                            {turn.status === 'success' ? '已完成' : turn.status === 'error' ? '失败' : turn.status === 'optimizing' ? '准备中' : '生成中'}
                           </span>
                         </div>
 
@@ -955,19 +920,14 @@ export default function App() {
             <Generator
               aspectRatio={aspectRatio}
               count={count}
-              ecomSkillAvailable={optimizerAvailable}
-              ecomSkillEnabled={ecomSkillActive}
               isBusy={activeConversationBusy}
               model={model}
               models={imageModels}
-              optimizerModels={optimizerModels}
               mode={effectiveMode}
               onAspectRatioChange={setAspectRatio}
               onCountChange={setCount}
-              onEcomSkillEnabledChange={setUseEcomSkill}
-              onModelChange={setModel}
-              onOptimizerModelChange={updatePromptOptimizerModel}
               onModeChange={setMode}
+              onModelChange={setModel}
               onOpenPromptMarket={() => setPromptMarketOpen(true)}
               onPromptChange={setPrompt}
               onQualityChange={setQuality}
@@ -976,7 +936,6 @@ export default function App() {
               onResolutionChange={setResolution}
               onSubmit={handleSubmit}
               prompt={prompt}
-              optimizerModel={promptOptimizerModel}
               previousImages={previousImages}
               quality={quality}
               referenceImages={referenceImages}
@@ -1004,13 +963,9 @@ export default function App() {
       {settingsOpen && (
         <Settings
           config={config}
-          models={optimizerModels}
-          optimizerAvailable={optimizerAvailable}
           onClose={() => setSettingsOpen(false)}
-          onPromptOptimizerModelChange={updatePromptOptimizerModel}
           onRefreshModels={refreshModels}
           onUpdateConfig={updateConfig}
-          promptOptimizerModel={promptOptimizerModel}
           user={loginUser}
         />
       )}

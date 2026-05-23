@@ -1,16 +1,34 @@
-# React + Vite
+# Image Site
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A React + Vite image generation workspace with a Node backend, OpenAI-compatible image endpoints, prompt optimization, and persisted generation jobs.
 
-Currently, two official plugins are available:
+## Setup
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+```bash
+npm install
+cp .env.example .env
+npm run dev
+```
 
-## React Compiler
+The frontend dev server runs through Vite. For the Node backend, set the required environment variables from `.env.example` and run:
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+```bash
+npm run serve
+```
 
-## Expanding the ESLint configuration
+## Required Secrets
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+Do not commit real values for these variables:
+
+- `SUB2API_DB_PASSWORD`
+- `IMAGE_SITE_AUTH_SECRET`
+
+Local runtime data, deployment state, cache folders, generated archives, and tool-specific local settings are ignored by Git.
+
+## Scripts
+
+```bash
+npm run build
+npm run lint
+npm run serve
+```

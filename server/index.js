@@ -15,8 +15,8 @@ const MAX_IMAGE_BYTES = 18 * 1024 * 1024
 const RUNNING_TIMEOUT_MS = 30 * 60 * 1000
 const SUB2API_API_URL = (process.env.SUB2API_API_URL || 'http://127.0.0.1:10001').replace(/\/+$/, '')
 
-const DB_PASSWORD = process.env.SUB2API_DB_PASSWORD || ''
-const AUTH_SECRET = process.env.IMAGE_SITE_AUTH_SECRET || DB_PASSWORD
+const DB_PASSWORD = readRequiredEnv('SUB2API_DB_PASSWORD')
+const AUTH_SECRET = readRequiredEnv('IMAGE_SITE_AUTH_SECRET')
 const AUTH_TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000
 
 const pool = new pg.Pool({
@@ -33,6 +33,12 @@ const DIST_DIR = join(ROOT_DIR, 'dist')
 const JOB_DIR = process.env.IMAGE_SITE_JOB_DIR || join(ROOT_DIR, '.data', 'jobs')
 
 const runningJobs = new Set()
+
+function readRequiredEnv(name) {
+  const value = process.env[name]?.trim()
+  if (!value) throw new Error(`${name} is required`)
+  return value
+}
 
 await mkdir(JOB_DIR, { recursive: true })
 await cleanupExpiredJobs()

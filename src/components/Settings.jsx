@@ -1,20 +1,15 @@
 import { useEffect, useState } from 'react'
-import { Check, ChevronDown, Fingerprint, Globe, KeyRound, RefreshCw, WandSparkles, X } from 'lucide-react'
+import { Check, Fingerprint, Globe, KeyRound, RefreshCw, X } from 'lucide-react'
 import { authGenerateKey, authGroups } from '../api/backend'
 import GroupPicker from './GroupPicker'
-import Popover, { PopoverItem } from './Popover'
 
-export default function Settings({ config, user, onUpdateConfig, onClose, onRefreshModels, models = [], optimizerAvailable = false, promptOptimizerModel = '', onPromptOptimizerModelChange }) {
+export default function Settings({ config, user, onUpdateConfig, onClose, onRefreshModels }) {
   const [groups, setGroups] = useState([])
   const [selectedGroupId, setSelectedGroupId] = useState(config.groupId)
   const [loading, setLoading] = useState(Boolean(user?.id))
   const [error, setError] = useState('')
   const [saved, setSaved] = useState(false)
   const [showKey, setShowKey] = useState(false)
-  const [optimizerOpen, setOptimizerOpen] = useState(false)
-  const optimizerLabel = optimizerAvailable
-    ? models.find((m) => m.model_key === promptOptimizerModel)?.display_name || promptOptimizerModel || '自动选择'
-    : '不可用'
 
   useEffect(() => {
     if (!user?.id) return
@@ -135,31 +130,6 @@ export default function Settings({ config, user, onUpdateConfig, onClose, onRefr
               value={config.clientId || ''}
             />
           </label>
-
-          <div className="grid gap-2">
-            <span className="flex items-center gap-2 text-sm font-medium text-charcoal">
-              <WandSparkles size={14} />
-              电商 Skill 意图模型
-            </span>
-            <Popover align="start" disabled={!optimizerAvailable} open={optimizerOpen} onClose={setOptimizerOpen} side="bottom" trigger={
-              <span className="inline-flex h-10 w-full items-center justify-between gap-2 rounded-xl border border-borderSoft bg-muted px-3.5 text-sm text-stoneText shadow-innerSoft">
-                <span className="truncate">{optimizerLabel}</span>
-                <ChevronDown size={14} />
-              </span>
-            }>
-              <PopoverItem active={!promptOptimizerModel} onSelect={() => { onPromptOptimizerModelChange?.(''); setOptimizerOpen(false) }}>
-                <span>自动选择</span>
-              </PopoverItem>
-              {models.map((m) => (
-                <PopoverItem key={m.model_key} active={m.model_key === promptOptimizerModel} onSelect={() => { onPromptOptimizerModelChange?.(m.model_key); setOptimizerOpen(false) }}>
-                  <span className="truncate">{m.display_name || m.model_key}</span>
-                </PopoverItem>
-              ))}
-            </Popover>
-            {!optimizerAvailable && (
-              <p className="text-xs leading-5 text-stoneText">上游模型列表没有匹配 gpt-x.x 的模型，电商 Skill 优化已关闭。</p>
-            )}
-          </div>
         </div>
 
         <div className="mt-5 flex flex-col gap-3">

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { AlertTriangle, Check, LoaderCircle, X } from 'lucide-react'
+import { buildJobPromptText } from '../utils/promptComposition'
 
 export default function PromptReviewDialog({ draft, isBusy, onCancel, onConfirm }) {
   const [editedPrompt, setEditedPrompt] = useState(() => draft?.optimizedPrompt?.prompt || draft?.submittedPrompt || '')
@@ -10,14 +11,16 @@ export default function PromptReviewDialog({ draft, isBusy, onCancel, onConfirm 
   const promptItems = Array.isArray(draft.optimizedPrompt?.prompts) ? draft.optimizedPrompt.prompts : []
   const warning = draft.optimizedPrompt?.warning || ''
   const canConfirm = editedPrompt.trim().length > 0 && !isBusy
+  const finalPromptPreview = promptItems.length > 0
+    ? buildJobPromptText({ ...draft.optimizedPrompt, prompt: editedPrompt }, draft.submittedPrompt).prompt
+    : ''
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-charcoal/85 px-4 backdrop-blur">
       <div className="relative flex max-h-[92vh] w-[min(94vw,46rem)] flex-col overflow-hidden rounded-[1.5rem] bg-white/95 shadow-float backdrop-blur">
         <div className="flex items-center justify-between gap-3 border-b border-borderSoft/70 px-5 py-3">
           <div className="min-w-0">
-            <h2 className="text-lg font-semibold tracking-tight text-charcoal">确认优化提示词</h2>
-            <p className="mt-0.5 text-xs text-stoneText">意图模型 {draft.optimizedPrompt?.model || '未配置'}</p>
+            <h2 className="text-lg font-semibold tracking-tight text-charcoal">确认提示词</h2>
           </div>
           <button
             aria-label="关闭"
@@ -47,7 +50,7 @@ export default function PromptReviewDialog({ draft, isBusy, onCancel, onConfirm 
             </section>
 
             <section className="rounded-xl border border-borderSoft/70 bg-white p-3">
-              <h3 className="text-xs font-semibold text-charcoal">优化后提示词</h3>
+              <h3 className="text-xs font-semibold text-charcoal">最终提示词</h3>
               <textarea
                 className="mt-2 min-h-56 w-full resize-y rounded-lg border border-borderSoft bg-pearl/70 px-3 py-2 text-xs leading-5 text-charcoal outline-none transition focus:border-champagne focus:ring-4 focus:ring-amberSoft disabled:opacity-70"
                 disabled={isBusy}
@@ -59,21 +62,15 @@ export default function PromptReviewDialog({ draft, isBusy, onCancel, onConfirm 
 
           {promptItems.length > 0 && (
             <div className="mt-3 rounded-xl border border-borderSoft/70 bg-white p-3">
-              <h3 className="text-xs font-semibold text-charcoal">分图提示词</h3>
-              <div className="mt-2 max-h-72 space-y-2 overflow-y-auto">
-                {promptItems.map((item, index) => (
-                  <section key={`${index}-${item.title || 'image'}`} className="rounded-lg border border-borderSoft/70 bg-pearl/80 p-2">
-                    <h4 className="text-[11px] font-semibold text-charcoal">{item.title || `图片 ${index + 1}`}</h4>
-                    <p className="mt-1 whitespace-pre-wrap text-xs leading-5 text-stoneText">{item.prompt}</p>
-                  </section>
-                ))}
-              </div>
+              <h3 className="text-xs font-semibold text-charcoal">最终发送给生图模型的分图指令</h3>
+              <p className="mt-1 text-[11px] leading-5 text-stoneText">会明确要求生成 {promptItems.length} 张独立图片，并逐张指定生成方向。</p>
+              <pre className="mt-2 max-h-72 overflow-y-auto whitespace-pre-wrap rounded-lg bg-pearl/80 p-2 text-xs leading-5 text-stoneText">{finalPromptPreview}</pre>
             </div>
           )}
 
           {notes.length > 0 && (
             <div className="mt-3 rounded-xl border border-borderSoft/70 bg-surface/70 p-3">
-              <h3 className="text-xs font-semibold text-charcoal">优化说明</h3>
+              <h3 className="text-xs font-semibold text-charcoal">说明</h3>
               <ul className="mt-2 space-y-1 text-xs leading-5 text-stoneText">
                 {notes.map((note, index) => (
                   <li key={`${index}-${note}`}>{note}</li>
