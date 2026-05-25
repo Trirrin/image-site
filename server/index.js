@@ -8,6 +8,7 @@ import pg from 'pg'
 import bcrypt from 'bcryptjs'
 import { isEcomOptimizerModel, optimizeEcomPrompt } from '../functions/api/ecom-prompt-engine.js'
 import { createPaymentSessionStore } from './payment-session.js'
+import { buildBillingProxyHeaders } from './payment-return.js'
 
 const PORT = Number(process.env.PORT || 8787)
 const JOB_TTL_MS = 48 * 60 * 60 * 1000
@@ -268,9 +269,7 @@ async function handleBillingProxy(req, res, path, options = {}) {
     const data = await requestSub2apiWithSession(auth, path, {
       method: options.method || 'GET',
       body: options.body,
-      headers: {
-        'Accept-Language': req.headers['accept-language'] || '',
-      },
+      headers: buildBillingProxyHeaders(req, options.body),
     })
     sendJson(res, 200, data)
   } catch (error) {

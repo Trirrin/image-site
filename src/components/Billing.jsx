@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { AlertCircle, CheckCircle2, CreditCard, ExternalLink, Loader2, ReceiptText, RefreshCw } from 'lucide-react'
+import { TbBrandAlipay, TbBrandStripe, TbBrandWechat, TbCreditCardPay, TbWorldDollar } from 'react-icons/tb'
 import {
   createPaymentOrder,
   fetchCheckoutInfo,
@@ -8,6 +9,7 @@ import {
   verifyPaymentOrder,
 } from '../api/backend'
 import Drawer from './Drawer'
+import { buildPaymentReturnUrl } from '../utils/paymentReturn'
 
 const METHOD_LABELS = {
   alipay: 'Alipay',
@@ -17,6 +19,16 @@ const METHOD_LABELS = {
   stripe: 'Stripe',
   easypay: 'EasyPay',
   airwallex: 'Airwallex',
+}
+
+const METHOD_ICONS = {
+  alipay: { Icon: TbBrandAlipay, className: 'text-[#1677ff]' },
+  alipay_direct: { Icon: TbBrandAlipay, className: 'text-[#1677ff]' },
+  wxpay: { Icon: TbBrandWechat, className: 'text-[#07c160]' },
+  wxpay_direct: { Icon: TbBrandWechat, className: 'text-[#07c160]' },
+  stripe: { Icon: TbBrandStripe, className: 'text-[#635bff]' },
+  easypay: { Icon: TbCreditCardPay, className: 'text-ink-primary' },
+  airwallex: { Icon: TbWorldDollar, className: 'text-ink-primary' },
 }
 
 const TERMINAL_STATUSES = new Set(['COMPLETED', 'PAID', 'FAILED', 'CANCELLED', 'EXPIRED', 'REFUNDED'])
@@ -82,7 +94,7 @@ export default function Billing({ open, onClose, onPaymentComplete }) {
         planId: selectedPlan.id,
         amount: selectedPlan.price,
         paymentType: selectedMethod,
-        returnUrl: window.location.href,
+        returnUrl: buildPaymentReturnUrl(window.location.origin),
         isMobile: window.matchMedia?.('(max-width: 768px)').matches || false,
       })
       setOrderResult(result)
@@ -191,11 +203,13 @@ export default function Billing({ open, onClose, onPaymentComplete }) {
                 ) : methods.map((method) => (
                   <button
                     key={method.key}
-                    className={`rounded-input border px-s-3 py-s-2 text-sm font-medium transition ${selectedMethod === method.key ? 'border-accent bg-accent text-ink-base-l' : 'border-border-subtle bg-surface-02 text-ink-secondary hover:bg-surface-03'}`}
+                    aria-label={method.label}
+                    className={`grid h-12 place-items-center rounded-input border px-s-3 transition ${selectedMethod === method.key ? 'border-accent bg-accent-wash' : 'border-border-subtle bg-surface-02 hover:bg-surface-03'}`}
                     onClick={() => setSelectedMethod(method.key)}
+                    title={method.label}
                     type="button"
                   >
-                    {method.label}
+                    <PaymentMethodLogo method={method} />
                   </button>
                 ))}
               </div>
@@ -286,6 +300,11 @@ function availableMethods(methods) {
   return Object.entries(methods)
     .filter(([, limit]) => limit?.available !== false)
     .map(([key]) => ({ key, label: METHOD_LABELS[key] || key }))
+}
+
+function PaymentMethodLogo({ method }) {
+  const { Icon, className } = METHOD_ICONS[method.key] || { Icon: TbCreditCardPay, className: 'text-ink-primary' }
+  return <Icon aria-hidden="true" className={className} size={26} strokeWidth={1.8} />
 }
 
 function normalizeOrders(page) {

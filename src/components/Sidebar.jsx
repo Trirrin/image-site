@@ -34,11 +34,12 @@ export default function Sidebar({
       )}
 
       <aside
-        className={`fixed inset-y-0 left-0 z-40 flex h-screen w-[240px] shrink-0 flex-col gap-s-2 border-r border-border-subtle bg-surface-01 px-s-3 py-s-5 transition-all md:static md:z-0 md:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-40 flex h-screen shrink-0 flex-col gap-s-2 overflow-hidden border-r border-border-subtle bg-surface-01 px-s-3 py-s-5 transition-[width,transform] duration-200 ease-out md:static md:z-0 md:translate-x-0 ${
           isOpen ? 'translate-x-0' : '-translate-x-full'
-        } ${expanded ? 'w-[240px]' : 'w-14'}`}
+        }`}
+        style={{ width: expanded ? 240 : 64 }}
       >
-        <div className={`flex items-center gap-s-2 px-s-3 pb-s-4 ${expanded ? '' : 'justify-center'}`}>
+        <div className={`flex items-center gap-s-2 pb-s-4 ${expanded ? 'px-s-3' : 'justify-center px-0'}`}>
           <div className="grid h-7 w-7 shrink-0 place-items-center rounded-input bg-accent/10 text-accent">
             <Image size={14} />
           </div>
@@ -152,38 +153,39 @@ export default function Sidebar({
 
         <div className="border-t border-border-subtle pt-s-2">
           {expanded ? (
-            <div className="flex items-center gap-s-1 px-s-1">
+            <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-s-1 px-s-1">
               {onOpenBilling && (
                 <button
                   aria-label="Subscription"
-                  className="flex flex-1 items-center gap-s-2 rounded-input px-s-3 py-s-2 text-sm text-ink-muted transition-colors hover:bg-surface-02 hover:text-ink-primary"
+                  className="flex min-w-0 items-center gap-s-2 rounded-input px-s-3 py-s-2 text-sm text-ink-muted transition-colors hover:bg-surface-02 hover:text-ink-primary"
                   onClick={onOpenBilling}
+                  title="Subscription"
                   type="button"
                 >
-                  <CreditCard size={14} />
-                  Plan
+                  <CreditCard size={14} className="shrink-0" />
+                  <span className="truncate">Plan</span>
                 </button>
               )}
               {onOpenSettings && (
                 <button
-                  aria-label="设置"
-                  className="flex flex-1 items-center gap-s-2 rounded-input px-s-3 py-s-2 text-sm text-ink-muted transition-colors hover:bg-surface-02 hover:text-ink-primary"
+                  aria-label="Settings"
+                  className="grid h-9 w-9 shrink-0 place-items-center rounded-input text-ink-muted transition-colors hover:bg-surface-02 hover:text-ink-primary"
                   onClick={onOpenSettings}
+                  title="Settings"
                   type="button"
                 >
-                  <Settings size={14} />
-                  设置
+                  <Settings size={15} />
                 </button>
               )}
               {onLogout && (
                 <button
                   aria-label="Logout"
-                  className="flex flex-1 items-center gap-s-2 rounded-input px-s-3 py-s-2 text-sm text-ink-muted transition-colors hover:bg-surface-02 hover:text-ink-primary"
+                  className="grid h-9 w-9 shrink-0 place-items-center rounded-input text-ink-muted transition-colors hover:bg-surface-02 hover:text-ink-primary"
                   onClick={onLogout}
+                  title="Logout"
                   type="button"
                 >
-                  <LogOut size={14} />
-                  退出
+                  <LogOut size={15} />
                 </button>
               )}
             </div>
@@ -222,8 +224,10 @@ export default function Sidebar({
             </div>
           )}
           <button
-            className="flex w-full items-center justify-center gap-s-1 py-s-2 text-[11px] text-ink-faint transition-colors hover:text-ink-muted"
+            aria-label={expanded ? 'Collapse sidebar' : 'Expand sidebar'}
+            className="flex h-9 w-full items-center justify-center gap-s-1 rounded-input py-s-2 text-[11px] text-ink-faint transition-colors hover:bg-surface-02 hover:text-ink-muted"
             onClick={() => setExpanded(!expanded)}
+            title={expanded ? 'Collapse sidebar' : 'Expand sidebar'}
             type="button"
           >
             {expanded ? <><ChevronLeft size={12} /> 收起</> : <ChevronRight size={12} />}
