@@ -31,18 +31,16 @@ export default function Popover({ open, onClose, trigger, children, align = 'sta
 
   return (
     <div className="relative" ref={ref}>
-      <button
+      <span
         aria-expanded={open}
         className={disabled ? 'contents cursor-not-allowed opacity-60' : 'contents'}
-        disabled={disabled}
         onClick={() => { if (!disabled) onClose(!open) }}
-        type="button"
       >
         {trigger}
-      </button>
+      </span>
       {open && (
         <div
-          className={`absolute z-40 ${posClass} ${alignClass} min-w-[140px] rounded-2xl border border-borderSoft/70 bg-white/95 p-1.5 shadow-float backdrop-blur`}
+          className={`absolute z-40 ${posClass} ${alignClass} min-w-[140px] rounded-card border border-border-subtle bg-surface-02 p-1.5 shadow-lift`}
           role="dialog"
         >
           {children}
@@ -55,8 +53,8 @@ export default function Popover({ open, onClose, trigger, children, align = 'sta
 export function PopoverItem({ active, disabled, onSelect, children }) {
   return (
     <button
-      className={`flex w-full items-center justify-between gap-2 rounded-xl px-3 py-2 text-left text-sm transition ${
-        active ? 'bg-amberSoft text-charcoal' : 'text-charcoal hover:bg-muted'
+      className={`flex w-full items-center justify-between gap-s-2 rounded-std px-s-3 py-s-2 text-left text-sm transition ${
+        active ? 'bg-accent/15 text-accent' : 'text-ink-primary hover:bg-surface-03'
       } ${disabled ? 'cursor-not-allowed opacity-60' : ''}`}
       disabled={disabled}
       onClick={onSelect}

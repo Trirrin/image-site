@@ -1,36 +1,94 @@
 @import "tailwindcss";
 
 @theme {
-  --color-amberSoft: #f4ead6;
-  --color-champagne: #b8975a;
-  --color-charcoal: #1f2933;
-  --color-muted: #f1eee7;
-  --color-pearl: #f8f6f0;
-  --color-surface: #fffdf8;
-  --color-stoneText: #68717d;
-  --color-borderSoft: #e8e1d4;
+  --color-ink-base: #0b0b0e;
+  --color-ink-base-l: #faf7f2;
+  --color-surface-01: #131318;
+  --color-surface-02: #1c1c24;
+  --color-surface-03: #23232d;
+  --color-surface-glass: rgba(28, 28, 36, 0.62);
+  --color-border-subtle: #26262f;
+  --color-border-strong: #34343f;
+  --color-border-hair: rgba(240, 232, 221, 0.06);
+  --color-ink-primary: #f0e8dd;
+  --color-ink-secondary: #c6bba9;
+  --color-ink-muted: #948a7e;
+  --color-ink-faint: #5c544b;
+  --color-accent: #c4513a;
+  --color-accent-soft: #d97757;
+  --color-accent-deep: #8e3525;
+  --color-accent-glow: rgba(196, 81, 58, 0.22);
+  --color-accent-wash: rgba(196, 81, 58, 0.1);
+  --color-success: #6b8e5a;
+  --color-warning: #c4924a;
+  --color-danger: #a23e2f;
+  --color-info: #4a6f8e;
+  --color-neutral: #948a7e;
 
-  --font-family-sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --spacing-s-1: 4px;
+  --spacing-s-2: 8px;
+  --spacing-s-3: 12px;
+  --spacing-s-4: 16px;
+  --spacing-s-5: 24px;
+  --spacing-s-6: 32px;
+  --spacing-s-7: 48px;
+  --spacing-s-8: 64px;
 
-  --shadow-button: 0 12px 28px rgba(184, 151, 90, 0.28);
-  --shadow-float: 0 24px 70px rgba(31, 41, 51, 0.1);
-  --shadow-innerSoft: inset 0 1px 0 rgba(255, 255, 255, 0.72);
-  --shadow-soft: 0 8px 26px rgba(31, 41, 51, 0.055);
-  --shadow-warm: 0 16px 42px rgba(31, 41, 51, 0.075);
+  --radius-input: 6px;
+  --radius-card: 16px;
+  --radius-std: 10px;
+  --radius-pill: 999px;
+
+  --shadow-lift: 0 12px 32px rgba(0, 0, 0, 0.4), 0 2px 4px rgba(0, 0, 0, 0.3);
+  --shadow-glass: 0 24px 48px rgba(0, 0, 0, 0.45);
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.2);
+  --shadow-input: 0 0 0 1px var(--color-border-subtle);
+
+  --font-family-display: "Instrument Serif", "Source Han Serif SC", "Songti SC", ui-serif, serif;
+  --font-family-sans: "Inter", "PingFang SC", "Noto Sans SC", system-ui, -apple-system, sans-serif;
+  --font-family-mono: "JetBrains Mono", "Fira Code", ui-monospace, monospace;
+
+  --animate-fade-in: fade-in 240ms ease-out forwards;
+  --animate-slide-up: slide-up 240ms var(--ease) forwards;
+
+  @keyframes fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  @keyframes slide-up {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
 }
 
 :root {
-  color: #1f2933;
+  --ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --t-fast: 160ms;
+  --t-std: 240ms;
+  --t-slow: 400ms;
+
+  color: var(--color-ink-primary);
   font-synthesis: none;
   text-rendering: optimizelegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background: #f8f6f0;
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: var(--color-ink-base);
+  font-family: var(--font-family-sans);
+  color-scheme: dark;
 }
 
 * { box-sizing: border-box; }
 body { min-width: 320px; min-height: 100vh; margin: 0; }
 button, input, textarea, select { font: inherit; }
 button, summary, select { -webkit-tap-highlight-color: transparent; }
-::selection { color: #1f2933; background: #f4ead6; }
+::selection { color: var(--color-ink-primary); background: var(--color-accent-wash); }
+
+* {
+  scrollbar-color: var(--color-border-strong) var(--color-ink-base);
+  scrollbar-width: thin;
+}
+*::-webkit-scrollbar { height: 6px; width: 6px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb { background-color: var(--color-border-strong); border-radius: var(--radius-pill); }
+*::-webkit-scrollbar-thumb:hover { background-color: var(--color-ink-faint); }

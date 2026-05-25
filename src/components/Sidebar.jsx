@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import {
-  Plus, Trash2, MessageCircle, GalleryHorizontalEnd,
+  Plus, Trash2, MessageCircle, Image,
   ChevronLeft, ChevronRight, LogOut, Settings,
 } from 'lucide-react'
 
@@ -15,66 +15,37 @@ export default function Sidebar({
   return (
     <>
       {isOpen && (
-        <div className="fixed inset-0 z-40 bg-charcoal/25 md:hidden" onClick={onToggle} />
+        <div className="fixed inset-0 z-40 bg-ink-base/60 backdrop-blur-sm md:hidden" onClick={onToggle} />
       )}
 
       <aside
-        className={`fixed inset-y-0 left-0 z-40 flex flex-col border-r border-borderSoft/70 bg-surface/90 backdrop-blur transition-all md:static md:z-0 md:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-40 flex h-screen w-[240px] shrink-0 flex-col gap-s-2 border-r border-border-subtle bg-surface-01 px-s-3 py-s-5 transition-all md:static md:z-0 md:translate-x-0 ${
           isOpen ? 'translate-x-0' : '-translate-x-full'
-        } ${expanded ? 'w-[272px]' : 'w-14'}`}
+        } ${expanded ? 'w-[240px]' : 'w-14'}`}
       >
-        <div className={`flex items-center gap-3 border-b border-borderSoft/70 px-4 py-3 ${expanded ? 'justify-between' : 'justify-center'}`}>
-          <div className="flex items-center gap-2">
-            <button
-              aria-label="新建会话"
-              className={`grid h-8 w-8 shrink-0 place-items-center rounded-2xl bg-amberSoft text-champagne ${expanded ? '' : 'hover:bg-amberSoft/70'}`}
-              onClick={onCreate}
-              type="button"
-            >
-              <GalleryHorizontalEnd size={14} />
-            </button>
-            {expanded && (
-              <span className="text-sm font-semibold tracking-tight text-charcoal">Image Site</span>
-            )}
+        <div className={`flex items-center gap-s-2 px-s-3 pb-s-4 ${expanded ? '' : 'justify-center'}`}>
+          <div className="grid h-7 w-7 shrink-0 place-items-center rounded-input bg-accent/10 text-accent">
+            <Image size={14} />
           </div>
           {expanded && (
-            <div className="flex items-center gap-1">
-              {onOpenSettings && (
-                <button
-                  aria-label="设置"
-                  className="grid h-8 w-8 place-items-center rounded-full border border-borderSoft bg-white text-stoneText transition hover:bg-muted"
-                  onClick={onOpenSettings}
-                  type="button"
-                >
-                  <Settings size={13} />
-                </button>
-              )}
-              {onLogout && (
-                <button
-                  aria-label="Logout"
-                  className="grid h-8 w-8 place-items-center rounded-full border border-borderSoft bg-white text-stoneText transition hover:bg-muted"
-                  onClick={onLogout}
-                  type="button"
-                >
-                  <LogOut size={13} />
-                </button>
-              )}
-              <button
-                aria-label="关闭侧栏"
-                className="grid h-8 w-8 place-items-center rounded-full border border-borderSoft bg-white text-stoneText transition hover:bg-muted md:hidden"
-                onClick={onToggle}
-                type="button"
-              >
-                <ChevronLeft size={14} />
-              </button>
-            </div>
+            <span className="font-display text-lg text-ink-primary">Image Site</span>
+          )}
+          {expanded && (
+            <button
+              aria-label="关闭侧栏"
+              className="ml-auto grid h-7 w-7 place-items-center rounded-input text-ink-muted hover:bg-surface-02 hover:text-ink-primary md:hidden"
+              onClick={onToggle}
+              type="button"
+            >
+              <ChevronLeft size={14} />
+            </button>
           )}
         </div>
 
         {expanded ? (
           <>
             <button
-              className="mx-3 mt-3 flex items-center gap-2 rounded-full bg-champagne px-4 py-2.5 text-sm font-semibold text-white shadow-button transition hover:-translate-y-0.5"
+              className="flex w-full items-center gap-s-2 rounded-input bg-accent px-s-3 py-s-2 text-sm font-medium text-ink-base-l transition-colors hover:bg-accent-soft"
               onClick={onCreate}
               type="button"
             >
@@ -82,21 +53,21 @@ export default function Sidebar({
               新建会话
             </button>
 
-            <div className="mt-3 flex-1 overflow-y-auto px-3 pb-4">
-              <p className="px-1 pb-2 text-[10px] font-medium uppercase tracking-[0.3em] text-stoneText">
+            <div className="mt-s-2 flex-1 overflow-y-auto px-s-1 pb-s-4">
+              <p className="px-s-2 pb-s-2 font-mono text-[10px] uppercase tracking-wide text-ink-faint">
                 会话历史
               </p>
               {conversations.length === 0 ? (
-                <p className="px-1 py-4 text-center text-xs text-stoneText">暂无会话</p>
+                <p className="px-s-2 py-s-4 text-center text-xs text-ink-faint">暂无会话</p>
               ) : (
-                <div className="space-y-0.5">
+                <ul className="flex flex-col gap-s-1">
                   {conversations.map((conv) => (
-                    <div key={conv.id} className="group flex items-center gap-1">
+                    <li key={conv.id} className="group flex items-center gap-s-1">
                       <button
-                        className={`flex flex-1 items-center gap-2 overflow-hidden rounded-xl px-3 py-2.5 text-left text-sm transition ${
+                        className={`flex flex-1 items-center gap-s-2 overflow-hidden rounded-input px-s-3 py-s-2 text-left text-sm transition-colors ${
                           activeId === conv.id
-                            ? 'bg-amberSoft text-charcoal'
-                            : 'text-charcoal/80 hover:bg-muted'
+                            ? 'bg-surface-02 text-accent'
+                            : 'text-ink-secondary hover:bg-surface-02 hover:text-ink-primary'
                         }`}
                         onClick={() => onSelect(conv.id)}
                         type="button"
@@ -106,23 +77,23 @@ export default function Sidebar({
                       </button>
                       <button
                         aria-label="删除会话"
-                        className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-stoneText opacity-0 transition hover:bg-rose-50 hover:text-rose-500 group-hover:opacity-100"
+                        className="grid h-7 w-7 shrink-0 place-items-center rounded-input text-ink-faint opacity-0 transition-colors hover:bg-danger/10 hover:text-danger group-hover:opacity-100"
                         onClick={() => onDelete(conv.id)}
                         type="button"
                       >
                         <Trash2 size={12} />
                       </button>
-                    </div>
+                    </li>
                   ))}
-                </div>
+                </ul>
               )}
             </div>
           </>
         ) : (
-          <div className="flex flex-1 flex-col items-center gap-3 pt-3">
+          <div className="flex flex-1 flex-col items-center gap-s-2 pt-s-2">
             <button
               aria-label="新建会话"
-              className="grid h-9 w-9 place-items-center rounded-full bg-champagne text-white shadow-button transition hover:-translate-y-0.5"
+              className="grid h-9 w-9 place-items-center rounded-input bg-accent text-ink-base-l transition-colors hover:bg-accent-soft"
               onClick={onCreate}
               type="button"
             >
@@ -132,10 +103,10 @@ export default function Sidebar({
               <button
                 key={conv.id}
                 aria-label={conv.title || '新的会话'}
-                className={`grid h-9 w-9 place-items-center rounded-xl transition ${
+                className={`grid h-9 w-9 place-items-center rounded-input transition-colors ${
                   activeId === conv.id
-                    ? 'bg-amberSoft text-charcoal'
-                    : 'text-stoneText hover:bg-muted'
+                    ? 'bg-surface-02 text-accent'
+                    : 'text-ink-muted hover:bg-surface-02 hover:text-ink-primary'
                 }`}
                 onClick={() => onSelect(conv.id)}
                 type="button"
@@ -143,36 +114,67 @@ export default function Sidebar({
                 <MessageCircle size={15} />
               </button>
             ))}
-            {onOpenSettings && (
-              <button
-                aria-label="设置"
-                className="mt-auto grid h-9 w-9 place-items-center rounded-full border border-borderSoft bg-white text-stoneText transition hover:bg-muted"
-                onClick={onOpenSettings}
-                type="button"
-              >
-                <Settings size={15} />
-              </button>
-            )}
-            {onLogout && (
-              <button
-                aria-label="Logout"
-                className={`${onOpenSettings ? '' : 'mt-auto'} grid h-9 w-9 place-items-center rounded-full border border-borderSoft bg-white text-stoneText transition hover:bg-muted`}
-                onClick={onLogout}
-                type="button"
-              >
-                <LogOut size={15} />
-              </button>
-            )}
           </div>
         )}
 
-        <button
-          className="flex items-center justify-center gap-1 border-t border-borderSoft/60 py-2.5 text-[11px] text-stoneText hover:text-charcoal"
-          onClick={() => setExpanded(!expanded)}
-          type="button"
-        >
-          {expanded ? <><ChevronLeft size={12} /> 收起侧栏</> : <ChevronRight size={12} />}
-        </button>
+        <div className="border-t border-border-subtle pt-s-2">
+          {expanded ? (
+            <div className="flex items-center gap-s-1 px-s-1">
+              {onOpenSettings && (
+                <button
+                  aria-label="设置"
+                  className="flex flex-1 items-center gap-s-2 rounded-input px-s-3 py-s-2 text-sm text-ink-muted transition-colors hover:bg-surface-02 hover:text-ink-primary"
+                  onClick={onOpenSettings}
+                  type="button"
+                >
+                  <Settings size={14} />
+                  设置
+                </button>
+              )}
+              {onLogout && (
+                <button
+                  aria-label="Logout"
+                  className="flex flex-1 items-center gap-s-2 rounded-input px-s-3 py-s-2 text-sm text-ink-muted transition-colors hover:bg-surface-02 hover:text-ink-primary"
+                  onClick={onLogout}
+                  type="button"
+                >
+                  <LogOut size={14} />
+                  退出
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className="flex flex-col items-center gap-s-2">
+              {onOpenSettings && (
+                <button
+                  aria-label="设置"
+                  className="grid h-9 w-9 place-items-center rounded-input text-ink-muted transition-colors hover:bg-surface-02 hover:text-ink-primary"
+                  onClick={onOpenSettings}
+                  type="button"
+                >
+                  <Settings size={15} />
+                </button>
+              )}
+              {onLogout && (
+                <button
+                  aria-label="Logout"
+                  className="grid h-9 w-9 place-items-center rounded-input text-ink-muted transition-colors hover:bg-surface-02 hover:text-ink-primary"
+                  onClick={onLogout}
+                  type="button"
+                >
+                  <LogOut size={15} />
+                </button>
+              )}
+            </div>
+          )}
+          <button
+            className="flex w-full items-center justify-center gap-s-1 py-s-2 text-[11px] text-ink-faint transition-colors hover:text-ink-muted"
+            onClick={() => setExpanded(!expanded)}
+            type="button"
+          >
+            {expanded ? <><ChevronLeft size={12} /> 收起</> : <ChevronRight size={12} />}
+          </button>
+        </div>
       </aside>
     </>
   )

@@ -75,38 +75,37 @@ export default function PromptMarket({ open, onClose, onSelectPrompt, onToggleFa
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-charcoal/85 backdrop-blur">
-      <div className="relative flex h-[min(94dvh,860px)] w-[min(96vw,1180px)] flex-col overflow-hidden rounded-[1.5rem] bg-white/95 shadow-float backdrop-blur">
-        <div className="flex items-center justify-between gap-3 border-b border-borderSoft/70 px-5 py-3">
-          <h2 className="text-lg font-semibold tracking-tight text-charcoal">灵感市场</h2>
-          <button
-            aria-label="关闭"
-            className="grid h-9 w-9 place-items-center rounded-full border border-borderSoft bg-white text-stoneText transition hover:bg-muted"
-            onClick={onClose}
-            type="button"
-          >
-            <X size={16} />
-          </button>
-        </div>
-
-        <div className="border-b border-borderSoft/60 px-5 py-3">
-          <div className="relative mb-3">
-            <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-stoneText" size={15} />
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-ink-base/80 backdrop-blur-sm">
+      <div className="max-w-3xl mx-auto mt-20 mb-10 border border-border-subtle rounded-card bg-surface-01 shadow-lift">
+        <div className="sticky top-0 z-10 border-b border-border-subtle bg-surface-01 px-s-5 py-s-3">
+          <div className="flex items-center justify-between">
+            <h2 className="font-display text-xl text-ink-primary">提示词市场</h2>
+            <button
+              aria-label="关闭"
+              className="grid h-9 w-9 place-items-center rounded-input border border-border-subtle bg-surface-02 text-ink-secondary transition hover:bg-surface-03"
+              onClick={onClose}
+              type="button"
+            >
+              <X size={16} />
+            </button>
+          </div>
+          <div className="relative mt-s-3">
+            <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted" size={15} />
             <input
-              className="h-9 w-full rounded-full border border-borderSoft bg-white pl-10 pr-4 text-sm text-charcoal outline-none transition placeholder:text-stoneText/80 focus:border-champagne focus:ring-2 focus:ring-amberSoft"
+              className="h-9 w-full rounded-pill border border-border-subtle bg-surface-03 pl-10 pr-s-4 text-sm text-ink-primary outline-none transition placeholder:text-ink-muted focus:border-accent focus:ring-2 focus:ring-accent-soft"
               onChange={(e) => setQuery(e.target.value)}
               placeholder="搜索灵感提示词..."
               value={query}
             />
           </div>
-          <div className="flex flex-wrap gap-1.5">
+          <div className="mt-s-3 flex gap-s-2 overflow-x-auto pb-s-1">
             {CATEGORIES.map((cat) => (
               <button
                 key={cat}
-                className={`rounded-full px-3.5 py-1.5 text-xs font-medium transition ${
+                className={`shrink-0 rounded-pill border px-s-3 py-s-1 text-xs font-medium transition ${
                   activeCategory === cat
-                    ? 'bg-champagne text-white'
-                    : 'bg-muted text-charcoal hover:bg-amberSoft'
+                    ? 'border-accent bg-accent/10 text-accent'
+                    : 'border-border-subtle bg-surface-01 text-ink-muted hover:border-border-strong'
                 }`}
                 onClick={() => setActiveCategory(cat)}
                 type="button"
@@ -117,71 +116,62 @@ export default function PromptMarket({ open, onClose, onSelectPrompt, onToggleFa
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-5 py-4">
+        <div className="px-s-5 py-s-4">
           {filtered.length === 0 ? (
-            <div className="flex h-40 items-center justify-center text-sm text-stoneText">
+            <div className="flex h-40 items-center justify-center text-sm text-ink-muted">
               没有匹配的提示词
             </div>
           ) : (
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3">
+            <div className="grid grid-cols-1 gap-s-3 md:grid-cols-2 lg:grid-cols-3">
               {filtered.map((p) => {
                 const fav = isFavorite?.(p.id)
                 return (
                   <div
                     key={p.id}
-                    className="group flex flex-col rounded-[1.25rem] border border-borderSoft/70 bg-surface/60 p-4 transition hover:border-champagne/70 hover:shadow-soft"
+                    className="rounded-card border border-border-subtle bg-surface-01 p-s-3 transition-colors hover:border-border-strong hover:bg-surface-02"
                   >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0 flex-1">
-                        <h3 className="truncate text-sm font-medium text-charcoal">{p.title}</h3>
-                        <span className="mt-0.5 inline-block rounded-full bg-amberSoft px-2 py-0 text-[10px] font-medium text-champagne">
-                          {p.category || '通用'}
-                        </span>
-                      </div>
-                      <div className="flex shrink-0 gap-1">
-                        {onToggleFavorite && (
-                          <button
-                            aria-label={fav ? '取消收藏' : '收藏'}
-                            className={`grid h-7 w-7 place-items-center rounded-full border transition ${
-                              fav
-                                ? 'border-amber-200 bg-amber-100 text-amber-700'
-                                : 'border-borderSoft bg-white text-stoneText hover:bg-muted'
-                            }`}
-                            onClick={() => onToggleFavorite(p)}
-                            type="button"
-                          >
-                            <Star size={12} fill={fav ? 'currentColor' : 'none'} />
-                          </button>
-                        )}
-                        <button
-                          aria-label={copiedId === p.prompt ? '已复制' : '复制'}
-                          className="grid h-7 w-7 shrink-0 place-items-center rounded-full border border-borderSoft bg-white text-stoneText transition hover:bg-muted"
-                          onClick={() => handleCopy(p.prompt)}
-                          type="button"
-                        >
-                          {copiedId === p.prompt ? <Check size={12} className="text-emerald-600" /> : <Copy size={12} />}
-                        </button>
-                      </div>
-                    </div>
-                    <p className="mt-2 line-clamp-4 flex-1 text-xs leading-5 text-stoneText">
+                    <span className="rounded-pill bg-accent/10 px-s-2 py-0 text-[10px] font-medium text-accent">
+                      {p.category || '通用'}
+                    </span>
+                    <p className="mt-s-2 line-clamp-3 text-sm text-ink-primary">
                       {p.prompt}
                     </p>
-                    <button
-                      className="mt-3 w-full rounded-full bg-champagne py-2 text-xs font-semibold text-white shadow-button transition hover:-translate-y-0.5"
-                      onClick={() => handleUse(p.prompt)}
-                      type="button"
-                    >
-                      使用此提示词
-                    </button>
+                    <div className="mt-s-3 flex items-center gap-s-2">
+                      {onToggleFavorite && (
+                        <button
+                          aria-label={fav ? '取消收藏' : '收藏'}
+                          className={`grid h-7 w-7 place-items-center rounded-input border transition ${
+                            fav
+                              ? 'border-accent bg-accent/20 text-accent'
+                              : 'border-border-subtle bg-surface-01 text-ink-muted hover:bg-surface-02'
+                          }`}
+                          onClick={() => onToggleFavorite(p)}
+                          type="button"
+                        >
+                          <Star size={14} fill={fav ? 'currentColor' : 'none'} />
+                        </button>
+                      )}
+                      <button
+                        aria-label={copiedId === p.prompt ? '已复制' : '复制'}
+                        className="grid h-7 w-7 place-items-center rounded-input border border-border-subtle bg-surface-01 text-ink-muted transition hover:bg-surface-02"
+                        onClick={() => handleCopy(p.prompt)}
+                        type="button"
+                      >
+                        {copiedId === p.prompt ? <Check size={14} className="text-success" /> : <Copy size={14} />}
+                      </button>
+                      <button
+                        className="ml-auto rounded-input bg-accent px-s-3 py-s-1 text-xs text-ink-base-l"
+                        onClick={() => handleUse(p.prompt)}
+                        type="button"
+                      >
+                        使用
+                      </button>
+                    </div>
                   </div>
                 )
               })}
             </div>
           )}
-        </div>
-
-        <div className="border-t border-borderSoft/60 px-5 py-2 text-center text-[10px] text-stoneText">
-          数据来源: GitHub open-source prompt collections
         </div>
       </div>
     </div>

@@ -1,6 +1,22 @@
 import { getStoredUser } from '../utils/authStorage'
 
 const API_BASE = import.meta.env.VITE_BACKEND_URL || ''
+const MOCK = import.meta.env.DEV
+
+const SAMPLE_IMAGES = [
+  'https://picsum.photos/seed/dev1/512/512',
+  'https://picsum.photos/seed/dev2/512/768',
+  'https://picsum.photos/seed/dev3/768/512',
+  'https://picsum.photos/seed/dev4/512/512',
+  'https://picsum.photos/seed/dev5/768/512',
+  'https://picsum.photos/seed/dev6/512/768',
+]
+const MOCK_GROUPS = [
+  { id: 'grp-demo', name: 'Demo Group', description: '演示分组，无需真实 API' },
+  { id: 'grp-test', name: 'Test Group', description: '测试分组' },
+]
+let mockJobCounter = 0
+const wait = (ms = 600) => new Promise((r) => setTimeout(r, ms))
 
 function authHeaders() {
   const token = getStoredUser()?.token
@@ -15,7 +31,6 @@ async function request(path, options = {}) {
       ...(options.headers || {}),
     },
   })
-
   const text = await response.text()
   const data = text ? JSON.parse(text) : null
   if (!response.ok) {
@@ -24,47 +39,42 @@ async function request(path, options = {}) {
   return data
 }
 
-export function fetchModels({ endpoint, apiKey }) {
-  return request('/api/models', {
-    method: 'POST',
-    body: JSON.stringify({ endpoint, apiKey }),
-  })
+export function fetchModels() {
+  if (!MOCK) return request('/api/models', { method: 'POST', body: JSON.stringify({}) })
+  return wait(400).then(() => ({
+    data: [
+      { id: 'gpt-image-1', model_key: 'gpt-image-1', display_name: 'GPT Image 1' },
+      { id: 'gpt-image-1-mini', model_key: 'gpt-image-1-mini', display_name: 'GPT Image 1 Mini' },
+      { id: 'gpt-4.1', model_key: 'gpt-4.1', display_name: 'GPT-4.1' },
+      { id: 'gpt-4.1-mini', model_key: 'gpt-4.1-mini', display_name: 'GPT-4.1 Mini' },
+    ],
+  }))
 }
 
-export function optimizePrompt({ endpoint, apiKey, model, input }) {
-  return request('/api/optimize-prompt', {
-    method: 'POST',
-    body: JSON.stringify({ endpoint, apiKey, model, input }),
-  })
+export function optimizePrompt({ input }) {
+  if (!MOCK) return request('/api/optimize-prompt', { method: 'POST', body: JSON.stringify({}) })
+  return wait(500).then(() => ({ optimized: { prompt: input?.prompt || '' } }))
 }
 
-export async function optimizePromptStream({ endpoint, apiKey, model, input, onStatus }) {
-  const response = await fetch(`${API_BASE}/api/optimize-prompt`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Accept: 'text/event-stream',
-    },
-    body: JSON.stringify({ endpoint, apiKey, model, input }),
-  })
-  if (!response.ok) {
-    const text = await response.text()
-    throw new Error(text || `request failed with ${response.status}`)
+export function optimizePromptStream({ input }) {
+  if (!MOCK) {
+    return fetch(`${API_BASE}/api/optimize-prompt`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream' },
+      body: JSON.stringify({}),
+    }).then(async (response) => {
+      if (!response.ok) throw new Error(await response.text())
+      if (!response.body) throw new Error('stream not readable')
+      let finalData = null
+      for await (const event of readSseEvents(response.body)) {
+        if (event.event === 'done') finalData = event.data
+        else if (event.event === 'error') throw new Error(event.data?.error)
+      }
+      if (!finalData) throw new Error('stream ended without result')
+      return finalData
+    })
   }
-  if (!response.body) throw new Error('stream response is not readable')
-
-  let finalData = null
-  for await (const event of readSseEvents(response.body)) {
-    if (event.event === 'status' || event.event === 'progress') {
-      onStatus?.(event.data)
-    } else if (event.event === 'done') {
-      finalData = event.data
-    } else if (event.event === 'error') {
-      throw new Error(event.data?.error || 'failed to optimize prompt')
-    }
-  }
-  if (!finalData) throw new Error('optimizer stream ended without result')
-  return finalData
+  return wait(600).then(() => ({ optimized: { prompt: input?.prompt || '' } }))
 }
 
 async function* readSseEvents(stream) {
@@ -102,43 +112,48 @@ function parseSseEvent(chunk) {
     if (line.startsWith('data:')) data.push(line.slice(5).trimStart())
   }
   if (data.length === 0) return null
-  try {
-    return { event, data: JSON.parse(data.join('\n')) }
-  } catch {
-    return { event, data: data.join('\n') }
-  }
+  try { return { event, data: JSON.parse(data.join('\n')) } }
+  catch { return { event, data: data.join('\n') } }
 }
 
-export function createImageJob({ clientId, endpoint, apiKey, request: body }) {
-  return request('/api/jobs', {
-    method: 'POST',
-    body: JSON.stringify({ clientId, endpoint, apiKey, request: body }),
-  })
+export function createImageJob() {
+  if (!MOCK) return request('/api/jobs', { method: 'POST', body: JSON.stringify({}) })
+  mockJobCounter += 1
+  const jobId = `mock-job-${mockJobCounter}`
+  return wait(300).then(() => ({ job: { id: jobId, status: 'pending', progress: 0 } }))
 }
 
-export function fetchJob({ clientId, jobId }) {
-  return request(`/api/jobs/${encodeURIComponent(jobId)}?clientId=${encodeURIComponent(clientId)}`)
+export function fetchJob({ jobId }) {
+  if (!MOCK) return request(`/api/jobs/${encodeURIComponent(jobId)}`)
+  const n = (mockJobCounter % 3) + 1
+  const images = Array.from({ length: n }, (_, i) => ({
+    id: `mock-img-${jobId}-${i}`,
+    url: SAMPLE_IMAGES[(mockJobCounter + i) % SAMPLE_IMAGES.length],
+  }))
+  return wait(1500).then(() => ({ job: { id: jobId, status: 'success', progress: 100, images } }))
 }
 
-export function fetchJobs({ clientId }) {
-  return request(`/api/jobs?clientId=${encodeURIComponent(clientId)}`)
+export function fetchJobs() {
+  if (!MOCK) return request('/api/jobs')
+  return wait(200).then(() => ({ jobs: [] }))
 }
 
-export function authLogin({ email, password }) {
-  return request('/api/auth/login', {
-    method: 'POST',
-    body: JSON.stringify({ email, password }),
-  })
+export function authLogin() {
+  if (!MOCK) return request('/api/auth/login', { method: 'POST', body: JSON.stringify({}) })
+  return wait(500).then(() => ({ user: { id: 'dev-user', email: 'dev@test.com', token: 'mock-token-dev' } }))
 }
 
 export function authGroups() {
-  return request('/api/auth/groups', { headers: authHeaders() })
+  if (!MOCK) return request('/api/auth/groups', { headers: authHeaders() })
+  return wait(300).then(() => ({ groups: MOCK_GROUPS }))
 }
 
-export function authGenerateKey({ name, groupId }) {
-  return request('/api/auth/generate-key', {
-    method: 'POST',
-    headers: authHeaders(),
-    body: JSON.stringify({ name, groupId }),
-  })
+export function authGenerateKey({ groupId }) {
+  if (!MOCK) return request('/api/auth/generate-key', { method: 'POST', headers: authHeaders(), body: JSON.stringify({}) })
+  const group = MOCK_GROUPS.find((g) => g.id === groupId) || { id: groupId, name: 'Demo' }
+  return wait(400).then(() => ({
+    key: 'mk-dev-xxxxxxxxxxxxxxxxxxxxxxxx',
+    endpoint: 'https://mock-api.example.com',
+    group: { id: group.id, name: group.name },
+  }))
 }

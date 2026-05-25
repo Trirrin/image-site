@@ -54,81 +54,82 @@ export default function ImagePreview({ open, items, index, onClose, onIndexChang
   if (!item) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-charcoal/85 backdrop-blur">
+    <div className="fixed inset-0 z-50 bg-ink-base/90 backdrop-blur-md">
       <button
         aria-label="关闭"
-        className="absolute right-6 top-6 grid h-10 w-10 place-items-center rounded-full bg-white/15 text-white transition hover:bg-white/25"
+        className="absolute right-s-5 top-s-5 z-10 grid h-10 w-10 place-items-center rounded-input bg-surface-01/80 text-ink-muted backdrop-blur transition hover:bg-surface-02 hover:text-ink-primary"
         onClick={onClose}
         type="button"
       >
         <X size={20} />
       </button>
 
-      <div className="flex items-center gap-4 max-w-[92vw] max-h-[92vh]">
-        {index > 0 && (
-          <button
-            aria-label="上一张"
-            className="grid h-12 w-12 place-items-center rounded-full bg-white/15 text-white transition hover:bg-white/25"
-            onClick={() => onIndexChange(index - 1)}
-            type="button"
-          >
-            <ChevronLeft size={24} />
-          </button>
-        )}
-
-        <div className="relative max-h-[88vh] max-w-[85%]">
-          <FallbackImage
-            alt={item.turnPrompt}
-            className="max-h-[88vh] max-w-full rounded-[1.25rem] object-contain shadow-float"
-            image={item.image}
-          />
-          <div className="absolute bottom-3 left-3 right-3 flex items-end justify-between gap-3">
-            <div className="max-w-[85%]">
-              <p className="rounded-2xl bg-charcoal/60 px-4 py-2 text-sm font-medium text-white/85 backdrop-blur line-clamp-3">
-                {item.turnPrompt}
-              </p>
-              <p className="mt-1 rounded-xl bg-charcoal/60 px-3 py-1 text-xs text-white/70 backdrop-blur inline-block">
-                {item.turnModel} {item.turnSize ? `· ${item.turnSize}` : ''}
-              </p>
-            </div>
-            <div className="flex shrink-0 items-center gap-2">
-              <button
-                aria-label="下载"
-                className="grid h-10 w-10 place-items-center rounded-full bg-white/20 text-white transition hover:bg-white/45"
-                onClick={() => handleDownload(item)}
-                type="button"
-              >
-                <Download size={18} />
-              </button>
-              <button
-                aria-label="打开原图"
-                className="grid h-10 w-10 place-items-center rounded-full bg-white/20 text-white transition hover:bg-white/45"
-                onClick={() => {
-                  const url = item.image.sourceUrl || item.image.url
-                  if (url) window.open(url, '_blank')
-                }}
-                type="button"
-              >
-                <ExternalLink size={18} />
-              </button>
-            </div>
-          </div>
+      {item.turnPrompt && (
+        <div className="absolute top-s-5 left-s-5 z-10 max-w-xs rounded-card border border-border-subtle bg-surface-glass px-s-4 py-s-3 backdrop-blur">
+          <p className="line-clamp-2 text-sm text-ink-primary">{item.turnPrompt}</p>
+          <p className="mt-s-1 font-mono text-xs text-ink-faint">
+            {item.turnModel}{item.turnSize ? ` · ${item.turnSize}` : ''}
+          </p>
         </div>
+      )}
 
-        {index < items.length - 1 && (
-          <button
-            aria-label="下一张"
-            className="grid h-12 w-12 place-items-center rounded-full bg-white/15 text-white transition hover:bg-white/25"
-            onClick={() => onIndexChange(index + 1)}
-            type="button"
-          >
-            <ChevronRight size={24} />
-          </button>
-        )}
+      <div className="flex h-full items-center justify-center">
+        <FallbackImage
+          alt={item.turnPrompt}
+          className="max-h-[85vh] rounded-std border border-border-subtle object-contain"
+          image={item.image}
+        />
       </div>
 
-      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 rounded-full bg-white/20 px-4 py-1.5 text-sm text-white/80 backdrop-blur">
-        {index + 1} / {items.length}
+      <div className="absolute bottom-0 left-0 right-0 border-t border-border-subtle bg-surface-glass px-s-5 py-s-3 backdrop-blur">
+        <div className="flex items-center justify-between">
+          <span className="rounded-pill bg-surface-03 px-s-3 py-s-1 text-xs text-ink-secondary">
+            {index + 1} / {items.length}
+          </span>
+
+          <div className="flex items-center gap-s-2">
+            <button
+              aria-label="上一张"
+              className="grid h-10 w-10 place-items-center rounded-input bg-surface-02 text-ink-secondary transition hover:bg-surface-03 disabled:opacity-30"
+              disabled={index <= 0}
+              onClick={() => onIndexChange(index - 1)}
+              type="button"
+            >
+              <ChevronLeft size={20} />
+            </button>
+            <button
+              aria-label="下一张"
+              className="grid h-10 w-10 place-items-center rounded-input bg-surface-02 text-ink-secondary transition hover:bg-surface-03 disabled:opacity-30"
+              disabled={index >= items.length - 1}
+              onClick={() => onIndexChange(index + 1)}
+              type="button"
+            >
+              <ChevronRight size={20} />
+            </button>
+          </div>
+
+          <div className="flex items-center gap-s-2">
+            <button
+              aria-label="下载"
+              className="grid h-10 w-10 place-items-center rounded-input bg-surface-02 text-ink-secondary transition hover:bg-surface-03"
+              onClick={() => handleDownload(item)}
+              type="button"
+            >
+              <Download size={18} />
+            </button>
+            <button
+              aria-label="打开原图"
+              className="grid h-10 w-10 place-items-center rounded-input bg-surface-02 text-ink-secondary transition hover:bg-surface-03"
+              onClick={() => {
+                const url = item.image.sourceUrl || item.image.url
+                if (url) window.open(url, '_blank')
+              }}
+              type="button"
+            >
+              <ExternalLink size={18} />
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   )

@@ -1,11 +1,13 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
-import { Menu, RotateCcw } from 'lucide-react'
+import { RotateCcw } from 'lucide-react'
 import Generator from './components/Generator'
 import Library from './components/Library'
 import ImagePreview from './components/ImagePreview'
 import PromptMarket from './components/PromptMarket'
 import PromptReviewDialog from './components/PromptReviewDialog'
 import Sidebar from './components/Sidebar'
+import Topbar from './components/Topbar'
+import StatusChip from './components/StatusChip'
 import FallbackImage from './components/FallbackImage'
 import Login from './components/Login'
 import Settings from './components/Settings'
@@ -70,6 +72,19 @@ export default function App() {
   } = useConversations()
   const { addFavorite, removeFavorite, isFavorite } = usePromptFavorites()
 
+  const IS_DEV = import.meta.env.DEV
+
+  useEffect(() => {
+    if (IS_DEV && !isConfigured) {
+      updateConfig({
+        endpoint: 'https://mock-api.example.com',
+        apiKey: 'mk-dev-xxxxxxxxxxxxxxxxxxxxxxxx',
+        groupId: 'grp-demo',
+        groupName: 'Demo Group',
+      })
+    }
+  }, [IS_DEV, isConfigured, updateConfig])
+
   const [view, setView] = useState('chat')
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
@@ -126,8 +141,9 @@ export default function App() {
   const [error, setError] = useState('')
   const errorTimer = useRef(null)
 
-  const [loginUser, setLoginUser] = useState(() => getStoredUser())
+  const [loginUser, setLoginUser] = useState(() => IS_DEV ? { id: 'dev-user', email: 'dev@test.com', token: 'mock-token-dev' } : getStoredUser())
   const [showLogin, setShowLogin] = useState(() => {
+    if (IS_DEV) return false
     const user = getStoredUser()
     return !user?.token || config.groupId == null
   })
@@ -734,7 +750,7 @@ export default function App() {
   const displayView = prompt.trim() || referenceImages.length > 0 || activeConversationBusy || activeConversationTurns.length > 0
 
   return (
-    <div className="flex h-screen overflow-hidden bg-pearl">
+    <div className="flex h-screen overflow-hidden bg-ink-base">
       <Sidebar
         activeId={activeId}
         conversations={conversations}
@@ -748,114 +764,61 @@ export default function App() {
       />
 
       <div className="flex flex-1 flex-col min-w-0">
-        <div className="flex items-center justify-between gap-3 border-b border-borderSoft/70 bg-surface/60 px-4 py-3 md:hidden">
-          <div className="flex items-center gap-2">
-            <button
-              aria-label="菜单"
-              className="grid h-9 w-9 place-items-center rounded-full border border-borderSoft bg-white text-stoneText"
-              onClick={() => setSidebarOpen(true)}
-              type="button"
-            >
-              <Menu size={15} />
-            </button>
-            <span className="text-sm font-semibold text-charcoal">Image Site</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              className={`rounded-full px-4 py-1.5 text-xs font-medium transition ${
-                view === 'chat' ? 'bg-amberSoft text-charcoal' : 'text-stoneText hover:text-charcoal'
-              }`}
-              onClick={() => setView('chat')}
-              type="button"
-            >
-              生成
-            </button>
-            <button
-              className={`rounded-full px-4 py-1.5 text-xs font-medium transition ${
-                view === 'library' ? 'bg-amberSoft text-charcoal' : 'text-stoneText hover:text-charcoal'
-              }`}
-              onClick={() => setView('library')}
-              type="button"
-            >
-              图库
-            </button>
-          </div>
-        </div>
-
-        <div className="hidden border-b border-borderSoft/70 bg-surface/60 px-5 py-3 md:flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <button
-              className={`rounded-full px-5 py-2 text-sm font-medium transition ${
-                view === 'chat' ? 'bg-amberSoft text-charcoal' : 'text-stoneText hover:text-charcoal'
-              }`}
-              onClick={() => setView('chat')}
-              type="button"
-            >
-              生成
-            </button>
-            <button
-              className={`rounded-full px-5 py-2 text-sm font-medium transition ${
-                view === 'library' ? 'bg-amberSoft text-charcoal' : 'text-stoneText hover:text-charcoal'
-              }`}
-              onClick={() => setView('library')}
-              type="button"
-            >
-              图库
-            </button>
-          </div>
-        </div>
+        <Topbar
+          view={view}
+          onViewChange={setView}
+          isConfigured={isConfigured}
+          groupName={config.groupName}
+          onOpenSettings={loginUser ? () => setSettingsOpen(true) : undefined}
+          onLogout={loginUser ? handleLogout : undefined}
+          onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
+        />
 
         {view === 'chat' && (
           <div className="flex-1 relative overflow-hidden">
-            <div className="absolute inset-0 overflow-y-auto pb-56 [scrollbar-width:thin]">
-              <div className="mx-auto max-w-6xl px-5 py-5">
+            <div className="absolute inset-0 overflow-y-auto pb-56">
+              <div className="mx-auto max-w-6xl px-s-5 py-s-5">
                 {!displayView ? (
-                  <div className="flex min-h-52 flex-col items-center justify-center gap-4 text-center">
-                    <div className="grid h-16 w-16 place-items-center rounded-[1.75rem] bg-white/80 text-champagne shadow-warm">
+                  <div className="flex min-h-52 flex-col items-center justify-center gap-s-4 text-center">
+                    <div className="grid h-16 w-16 place-items-center rounded-card bg-surface-02 text-accent">
                       <img className="h-8 w-8 object-contain" src="/logo.svg" alt="" onError={(e) => { e.target.style.display = 'none' }} />
                     </div>
                     <div>
-                      <h2 className="text-xl font-semibold tracking-tight text-charcoal">开始创作</h2>
-                      <p className="mt-1 text-sm text-stoneText max-w-md">
+                      <h2 className="font-display text-xl text-ink-primary">开始创作</h2>
+                      <p className="mt-s-1 text-sm text-ink-muted max-w-md">
                         在下方输入描述，选择模型和参数，生成令人惊叹的 AI 图像。
                       </p>
                     </div>
                   </div>
                 ) : (
-                  <div className="space-y-6">
+                  <div className="flex flex-col gap-s-4">
                     {activeConversationTurns.map((turn) => (
-                      <div key={turn.id} className="rounded-[1.25rem] border border-borderSoft/70 bg-white/80 p-4 shadow-soft">
-                        <div className="flex items-start justify-between gap-3">
+                      <article key={turn.id} className="rounded-card border border-border-subtle bg-surface-01 p-s-4 transition-colors hover:border-border-strong hover:bg-surface-02">
+                        <div className="flex items-start justify-between gap-s-3">
                           <div className="min-w-0 flex-1">
-                            <p className="text-sm font-medium text-charcoal">{turn.originalPrompt || turn.prompt || '（空提示词）'}</p>
-                            <p className="mt-1 text-[11px] text-stoneText">
+                            <p className="text-sm font-medium text-ink-primary">{turn.originalPrompt || turn.prompt || '（空提示词）'}</p>
+                            <p className="mt-s-1 font-mono text-xs text-ink-faint">
                               {turn.model && `${turn.model} · `}{turn.size || turn.resolution || ''}
                             </p>
                           </div>
-                          <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-[10px] font-medium ${
-                            turn.status === 'success' ? 'bg-emerald-50 text-emerald-700' :
-                            turn.status === 'error' ? 'bg-red-50 text-red-700' :
-                            'bg-amber-50 text-amber-700'
-                          }`}>
-                            {turn.status === 'success' ? '已完成' : turn.status === 'error' ? '失败' : turn.status === 'optimizing' ? '准备中' : '生成中'}
-                          </span>
+                          <StatusChip status={turn.status === 'success' ? 'ok' : turn.status === 'error' ? 'error' : turn.status === 'optimizing' ? 'pending' : 'pending'} label={turn.status === 'success' ? '已完成' : turn.status === 'error' ? '失败' : turn.status === 'optimizing' ? '准备中' : '生成中'} />
                         </div>
 
                         {(turn.status === 'pending' || turn.status === 'optimizing') && (
-                          <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-amber-100">
+                          <div className="mt-s-3 h-1.5 overflow-hidden rounded-full bg-surface-03">
                             <div
-                              className="h-full rounded-full bg-champagne transition-all duration-500"
-                              style={{ width: `${Math.max(5, Math.min(100, turn.progress || 5))}%` }}
+                              className="h-full rounded-full bg-accent transition-all"
+                              style={{ width: `${Math.max(5, Math.min(100, turn.progress || 5))}%`, transitionDuration: '500ms' }}
                             />
                           </div>
                         )}
 
                         {turn.status === 'optimizing' && optimizerStatus && (
-                          <p className="mt-2 text-xs font-medium text-amber-800">{optimizerStatus}</p>
+                          <p className="mt-s-2 text-xs font-medium text-warning">{optimizerStatus}</p>
                         )}
 
                         {turn.images.length > 0 && (
-                          <div className={`mt-3 grid max-w-3xl gap-2 ${
+                          <div className={`mt-s-3 grid max-w-3xl gap-s-2 ${
                             turn.images.length === 1 ? 'grid-cols-1' :
                             'grid-cols-2'
                           }`}>
@@ -863,7 +826,7 @@ export default function App() {
                               <FallbackImage
                                 key={img.id}
                                 alt={turn.prompt}
-                                className="h-auto max-h-[34vh] w-full rounded-xl border border-borderSoft/70 bg-pearl object-contain cursor-pointer transition hover:opacity-90 sm:max-h-[42vh]"
+                                className="h-auto max-h-[34vh] w-full rounded-std border border-border-subtle bg-ink-base object-contain cursor-pointer transition-colors hover:border-border-strong sm:max-h-[42vh]"
                                 image={img}
                                 loading="lazy"
                                 onClick={() => {
@@ -888,10 +851,10 @@ export default function App() {
                         )}
 
                         {turn.status === 'error' && (
-                          <div className="mt-2 flex flex-wrap items-center gap-2">
-                            <p className="min-w-0 flex-1 text-xs text-red-700">{turn.error || '生成失败'}</p>
+                          <div className="mt-s-2 flex flex-wrap items-center gap-s-2">
+                            <p className="min-w-0 flex-1 text-xs text-danger">{turn.error || '生成失败'}</p>
                             <button
-                              className="inline-flex h-8 items-center gap-1.5 rounded-full border border-red-200 bg-red-50 px-3 text-xs font-medium text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
+                              className="inline-flex h-8 items-center gap-s-2 rounded-input border border-danger/40 bg-danger/10 px-s-3 text-xs font-medium text-danger transition-colors hover:bg-danger/20 disabled:pointer-events-none disabled:opacity-50"
                               disabled={activeConversationBusy}
                               onClick={() => handleRetryTurn(activeId, turn)}
                               type="button"
@@ -901,7 +864,7 @@ export default function App() {
                             </button>
                           </div>
                         )}
-                      </div>
+                      </article>
                     ))}
                   </div>
                 )}
@@ -910,8 +873,8 @@ export default function App() {
 
 
             {error && (
-              <div className="pointer-events-none absolute bottom-[180px] left-1/2 z-20 -translate-x-1/2 px-4">
-                <div className="pointer-events-auto rounded-full bg-red-50 px-5 py-2.5 text-sm font-medium text-red-700 shadow-soft border border-red-200">
+              <div className="pointer-events-none absolute bottom-[180px] left-1/2 z-20 -translate-x-1/2 px-s-4">
+                <div className="pointer-events-auto rounded-pill border border-danger/40 bg-danger/10 px-s-5 py-s-2 text-sm font-medium text-danger shadow-lift">
                   {error}
                 </div>
               </div>

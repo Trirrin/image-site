@@ -70,8 +70,8 @@ export default function Login({ onLoginSuccess }) {
 
   if (step === 'group') {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-charcoal/85 backdrop-blur">
-        <div className="relative w-[min(92vw,28rem)] max-h-[92vh] overflow-y-auto rounded-[1.5rem] bg-white/95 p-6 shadow-float backdrop-blur">
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink-base/80 backdrop-blur">
+        <div className="relative w-[min(92vw,28rem)] max-h-[92vh] overflow-y-auto rounded-card border border-border-subtle bg-surface-01 p-s-6 shadow-lift">
           <GroupPicker
             actionLabel="Use Group"
             error={error}
@@ -89,29 +89,29 @@ export default function Login({ onLoginSuccess }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-charcoal/85 backdrop-blur">
-      <div className="relative w-[min(92vw,28rem)] max-h-[92vh] overflow-y-auto rounded-[1.5rem] bg-white/95 p-6 shadow-float backdrop-blur">
-        <div className="flex flex-col items-center gap-4 mb-6">
-          <div className="grid h-14 w-14 place-items-center rounded-[1.5rem] bg-amberSoft text-champagne shadow-warm">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink-base/80 backdrop-blur">
+      <div className="relative w-full max-w-md rounded-card border border-border-subtle bg-surface-01 p-s-6 shadow-lift">
+        <div className="flex flex-col items-center gap-s-4 mb-s-6">
+          <div className="grid h-14 w-14 place-items-center rounded-card bg-accent-soft/20 text-accent shadow-sm">
             <LogIn size={22} />
           </div>
           <div className="text-center">
-            <h2 className="text-xl font-semibold tracking-tight text-charcoal">Login</h2>
-            <p className="mt-1 text-sm text-stoneText">Login with your sub2api account</p>
+            <h2 className="font-display text-2xl text-ink-primary">Login</h2>
+            <p className="mt-s-1 text-sm text-ink-muted">Login with your sub2api account</p>
           </div>
         </div>
 
         {error && (
-          <div className="mb-4 rounded-full bg-red-50 px-4 py-2.5 text-sm font-medium text-red-700 border border-red-200">
+          <div className="mb-s-4 rounded-pill bg-danger/10 px-s-3 py-s-1 text-xs font-medium text-danger">
             {error}
           </div>
         )}
 
-        <div className="space-y-4">
-          <label className="grid gap-2">
-            <span className="text-sm font-medium text-charcoal">Email</span>
+        <div className="space-y-s-4">
+          <label className="grid gap-s-2">
+            <span className="text-sm font-medium text-ink-secondary">Email</span>
             <input
-              className="h-10 w-full rounded-xl border border-borderSoft bg-white px-3.5 text-sm text-charcoal shadow-innerSoft outline-none transition placeholder:text-stoneText/80 focus:border-champagne focus:ring-4 focus:ring-amberSoft"
+              className="h-10 w-full rounded-input border border-border-subtle bg-surface-02 px-3.5 text-sm text-ink-primary outline-none transition placeholder:text-ink-muted focus:ring-4 focus:ring-accent-soft"
               disabled={loading}
               onChange={(e) => setEmail(e.target.value)}
               onKeyDown={handleKeyDown}
@@ -121,10 +121,10 @@ export default function Login({ onLoginSuccess }) {
             />
           </label>
 
-          <label className="grid gap-2">
-            <span className="text-sm font-medium text-charcoal">Password</span>
+          <label className="grid gap-s-2">
+            <span className="text-sm font-medium text-ink-secondary">Password</span>
             <input
-              className="h-10 w-full rounded-xl border border-borderSoft bg-white px-3.5 text-sm text-charcoal shadow-innerSoft outline-none transition placeholder:text-stoneText/80 focus:border-champagne focus:ring-4 focus:ring-amberSoft"
+              className="h-10 w-full rounded-input border border-border-subtle bg-surface-02 px-3.5 text-sm text-ink-primary outline-none transition placeholder:text-ink-muted focus:ring-4 focus:ring-accent-soft"
               disabled={loading}
               onChange={(e) => setPassword(e.target.value)}
               onKeyDown={handleKeyDown}
@@ -136,7 +136,7 @@ export default function Login({ onLoginSuccess }) {
         </div>
 
         <button
-          className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-full bg-champagne py-3 text-sm font-semibold text-white shadow-button transition hover:-translate-y-0.5 disabled:opacity-60"
+          className="mt-s-6 inline-flex w-full items-center justify-center gap-s-2 rounded-input bg-accent py-s-3 text-sm font-semibold text-ink-base-l transition hover:bg-accent-soft disabled:opacity-60"
           disabled={loading}
           onClick={handleLogin}
           type="button"
