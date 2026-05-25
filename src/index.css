@@ -78,6 +78,36 @@
   color-scheme: dark;
 }
 
+:root[data-theme="light"] {
+  color-scheme: light;
+  --color-ink-base: #f7f4ef;
+  --color-ink-base-l: #0b0b0e;
+  --color-surface-01: #ffffff;
+  --color-surface-02: #f0ece5;
+  --color-surface-03: #e4dfd6;
+  --color-surface-glass: rgba(255, 255, 255, 0.72);
+  --color-border-subtle: #ddd7cd;
+  --color-border-strong: #c8c0b4;
+  --color-border-hair: rgba(0, 0, 0, 0.06);
+  --color-ink-primary: #1a1714;
+  --color-ink-secondary: #4a453d;
+  --color-ink-muted: #7a746b;
+  --color-ink-faint: #a9a39a;
+  --color-accent: #b5432e;
+  --color-accent-soft: #cf6a50;
+  --color-accent-deep: #8e3525;
+  --color-accent-glow: rgba(181, 67, 46, 0.14);
+  --color-accent-wash: rgba(181, 67, 46, 0.08);
+  --color-success: #5a7e4a;
+  --color-warning: #a67c3a;
+  --color-danger: #a23e2f;
+  --color-info: #3a5f7e;
+  --color-neutral: #7a746b;
+  --shadow-lift: 0 12px 32px rgba(0, 0, 0, 0.08), 0 2px 4px rgba(0, 0, 0, 0.06);
+  --shadow-glass: 0 24px 48px rgba(0, 0, 0, 0.1);
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
 * { box-sizing: border-box; }
 body { min-width: 320px; min-height: 100vh; margin: 0; }
 button, input, textarea, select { font: inherit; }

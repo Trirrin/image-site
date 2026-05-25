@@ -15,6 +15,21 @@ const MOCK_GROUPS = [
   { id: 'grp-demo', name: 'Demo Group', description: '演示分组，无需真实 API' },
   { id: 'grp-test', name: 'Test Group', description: '测试分组' },
 ]
+const MOCK_CHECKOUT_INFO = {
+  methods: {
+    alipay: { available: true, single_min: 1, single_max: 9999, fee_rate: 0, daily_limit: 9999, daily_used: 0, daily_remaining: 9999 },
+    wxpay: { available: true, single_min: 1, single_max: 9999, fee_rate: 0, daily_limit: 9999, daily_used: 0, daily_remaining: 9999 },
+  },
+  global_min: 1,
+  global_max: 9999,
+  plans: [
+    { id: 1, group_id: 101, group_name: 'Image Pro', name: 'Pro Monthly', description: 'Monthly image generation access', price: 29, validity_days: 30, validity_unit: 'day', features: ['Higher image quota', 'Priority image models'], supported_model_scopes: ['image'] },
+    { id: 2, group_id: 102, group_name: 'Image Max', name: 'Max Monthly', description: 'Heavy image generation access', price: 99, validity_days: 30, validity_unit: 'day', features: ['Expanded quota', 'All image models'], supported_model_scopes: ['image'] },
+  ],
+  balance_disabled: true,
+  help_text: '',
+  help_image_url: '',
+}
 let mockJobCounter = 0
 const wait = (ms = 600) => new Promise((r) => setTimeout(r, ms))
 
@@ -39,8 +54,8 @@ async function request(path, options = {}) {
   return data
 }
 
-export function fetchModels() {
-  if (!MOCK) return request('/api/models', { method: 'POST', body: JSON.stringify({}) })
+export function fetchModels(config = {}) {
+  if (!MOCK) return request('/api/models', { method: 'POST', body: JSON.stringify(config) })
   return wait(400).then(() => ({
     data: [
       { id: 'gpt-image-1', model_key: 'gpt-image-1', display_name: 'GPT Image 1' },
@@ -51,17 +66,19 @@ export function fetchModels() {
   }))
 }
 
-export function optimizePrompt({ input }) {
-  if (!MOCK) return request('/api/optimize-prompt', { method: 'POST', body: JSON.stringify({}) })
+export function optimizePrompt(payload = {}) {
+  const { input } = payload
+  if (!MOCK) return request('/api/optimize-prompt', { method: 'POST', body: JSON.stringify(payload) })
   return wait(500).then(() => ({ optimized: { prompt: input?.prompt || '' } }))
 }
 
-export function optimizePromptStream({ input }) {
+export function optimizePromptStream(payload = {}) {
+  const { input } = payload
   if (!MOCK) {
     return fetch(`${API_BASE}/api/optimize-prompt`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream' },
-      body: JSON.stringify({}),
+      body: JSON.stringify(payload),
     }).then(async (response) => {
       if (!response.ok) throw new Error(await response.text())
       if (!response.body) throw new Error('stream not readable')
@@ -116,8 +133,8 @@ function parseSseEvent(chunk) {
   catch { return { event, data: data.join('\n') } }
 }
 
-export function createImageJob() {
-  if (!MOCK) return request('/api/jobs', { method: 'POST', body: JSON.stringify({}) })
+export function createImageJob(payload = {}) {
+  if (!MOCK) return request('/api/jobs', { method: 'POST', body: JSON.stringify(payload) })
   mockJobCounter += 1
   const jobId = `mock-job-${mockJobCounter}`
   return wait(300).then(() => ({ job: { id: jobId, status: 'pending', progress: 0 } }))
@@ -138,8 +155,8 @@ export function fetchJobs() {
   return wait(200).then(() => ({ jobs: [] }))
 }
 
-export function authLogin() {
-  if (!MOCK) return request('/api/auth/login', { method: 'POST', body: JSON.stringify({}) })
+export function authLogin(credentials = {}) {
+  if (!MOCK) return request('/api/auth/login', { method: 'POST', body: JSON.stringify(credentials) })
   return wait(500).then(() => ({ user: { id: 'dev-user', email: 'dev@test.com', token: 'mock-token-dev' } }))
 }
 
@@ -148,12 +165,82 @@ export function authGroups() {
   return wait(300).then(() => ({ groups: MOCK_GROUPS }))
 }
 
-export function authGenerateKey({ groupId }) {
-  if (!MOCK) return request('/api/auth/generate-key', { method: 'POST', headers: authHeaders(), body: JSON.stringify({}) })
+export function authGenerateKey({ name = 'image-site', groupId } = {}) {
+  if (!MOCK) return request('/api/auth/generate-key', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ name, groupId }) })
   const group = MOCK_GROUPS.find((g) => g.id === groupId) || { id: groupId, name: 'Demo' }
   return wait(400).then(() => ({
     key: 'mk-dev-xxxxxxxxxxxxxxxxxxxxxxxx',
     endpoint: 'https://mock-api.example.com',
     group: { id: group.id, name: group.name },
   }))
+}
+
+function billingRequest(path, options = {}) {
+  return request(`/api/billing${path}`, {
+    ...options,
+    headers: {
+      ...authHeaders(),
+      ...(options.headers || {}),
+    },
+  })
+}
+
+export function fetchCheckoutInfo() {
+  if (!MOCK) return billingRequest('/checkout-info')
+  return wait(300).then(() => MOCK_CHECKOUT_INFO)
+}
+
+export function fetchSubscriptionSummary() {
+  if (!MOCK) return billingRequest('/subscriptions/summary')
+  return wait(200).then(() => ({ active_count: 0, subscriptions: [] }))
+}
+
+export function fetchActiveSubscriptions() {
+  if (!MOCK) return billingRequest('/subscriptions/active')
+  return wait(200).then(() => [])
+}
+
+export function createPaymentOrder({ planId, amount, paymentType, returnUrl, isMobile }) {
+  if (!MOCK) {
+    return billingRequest('/orders', {
+      method: 'POST',
+      body: JSON.stringify({
+        amount,
+        payment_type: paymentType,
+        order_type: 'subscription',
+        plan_id: planId,
+        return_url: returnUrl,
+        payment_source: 'image-site',
+        is_mobile: isMobile,
+      }),
+    })
+  }
+  return wait(400).then(() => ({
+    order_id: Date.now(),
+    amount,
+    pay_amount: amount,
+    fee_rate: 0,
+    status: 'PENDING',
+    payment_type: paymentType,
+    out_trade_no: `mock-${Date.now()}`,
+    pay_url: 'https://example.com/pay',
+    expires_at: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
+  }))
+}
+
+export function verifyPaymentOrder(outTradeNo) {
+  if (!MOCK) return billingRequest('/orders/verify', { method: 'POST', body: JSON.stringify({ out_trade_no: outTradeNo }) })
+  return wait(300).then(() => ({ out_trade_no: outTradeNo, status: 'COMPLETED' }))
+}
+
+export function fetchMyPaymentOrders(params = {}) {
+  if (!MOCK) {
+    const query = new URLSearchParams()
+    Object.entries(params).forEach(([key, value]) => {
+      if (value != null && value !== '') query.set(key, value)
+    })
+    const suffix = query.toString() ? `?${query}` : ''
+    return billingRequest(`/orders/my${suffix}`)
+  }
+  return wait(200).then(() => ({ items: [], total: 0, page: 1, page_size: 10, pages: 0 }))
 }

@@ -4,6 +4,20 @@ import {
   ChevronLeft, ChevronRight, LogOut, Settings,
 } from 'lucide-react'
 
+function getLastThumbnails(conv, max = 4) {
+  const images = []
+  for (let i = (conv.turns || []).length - 1; i >= 0 && images.length < max; i -= 1) {
+    const turn = conv.turns[i]
+    if (turn.status === 'success') {
+      for (const img of (turn.images || []).slice().reverse()) {
+        if (images.length >= max) break
+        if (img.url || img.sourceUrl) images.push(img.sourceUrl || img.url)
+      }
+    }
+  }
+  return images
+}
+
 export default function Sidebar({
   conversations, activeId, onSelect, onCreate, onDelete,
   isOpen, onToggle,
@@ -61,30 +75,48 @@ export default function Sidebar({
                 <p className="px-s-2 py-s-4 text-center text-xs text-ink-faint">暂无会话</p>
               ) : (
                 <ul className="flex flex-col gap-s-1">
-                  {conversations.map((conv) => (
-                    <li key={conv.id} className="group flex items-center gap-s-1">
-                      <button
-                        className={`flex flex-1 items-center gap-s-2 overflow-hidden rounded-input px-s-3 py-s-2 text-left text-sm transition-colors ${
-                          activeId === conv.id
-                            ? 'bg-surface-02 text-accent'
-                            : 'text-ink-secondary hover:bg-surface-02 hover:text-ink-primary'
-                        }`}
-                        onClick={() => onSelect(conv.id)}
-                        type="button"
-                      >
-                        <MessageCircle size={14} className="shrink-0" />
-                        <span className="truncate">{conv.title || '新的会话'}</span>
-                      </button>
-                      <button
-                        aria-label="删除会话"
-                        className="grid h-7 w-7 shrink-0 place-items-center rounded-input text-ink-faint opacity-0 transition-colors hover:bg-danger/10 hover:text-danger group-hover:opacity-100"
-                        onClick={() => onDelete(conv.id)}
-                        type="button"
-                      >
-                        <Trash2 size={12} />
-                      </button>
-                    </li>
-                  ))}
+                  {conversations.map((conv) => {
+                    const thumbs = getLastThumbnails(conv)
+                    return (
+                      <li key={conv.id} className="group relative">
+                        <button
+                          className={`flex w-full items-start gap-s-2 overflow-hidden rounded-input px-s-3 py-s-2 text-left text-sm transition-colors ${
+                            activeId === conv.id
+                              ? 'bg-surface-02 text-accent'
+                              : 'text-ink-secondary hover:bg-surface-02 hover:text-ink-primary'
+                          }`}
+                          onClick={() => onSelect(conv.id)}
+                          type="button"
+                        >
+                          <MessageCircle size={14} className="mt-0.5 shrink-0" />
+                          <div className="min-w-0 flex-1">
+                            <span className="truncate">{conv.title || '新的会话'}</span>
+                            {thumbs.length > 0 && (
+                              <div className="mt-s-1.5 flex gap-1">
+                                {thumbs.map((src, idx) => (
+                                  <img
+                                    key={`${conv.id}-thumb-${idx}`}
+                                    alt=""
+                                    className="h-7 w-7 shrink-0 rounded-sm border border-border-subtle object-cover"
+                                    loading="lazy"
+                                    src={src}
+                                  />
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </button>
+                        <button
+                          aria-label="删除会话"
+                          className="absolute right-1 top-1 grid h-7 w-7 shrink-0 place-items-center rounded-input text-ink-faint opacity-0 transition-colors hover:bg-danger/10 hover:text-danger group-hover:opacity-100"
+                          onClick={() => onDelete(conv.id)}
+                          type="button"
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      </li>
+                    )
+                  })}
                 </ul>
               )}
             </div>

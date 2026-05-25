@@ -8,14 +8,20 @@ import PromptReviewDialog from './components/PromptReviewDialog'
 import Sidebar from './components/Sidebar'
 import Topbar from './components/Topbar'
 import StatusChip from './components/StatusChip'
+import StageProgress from './components/StageProgress'
+import CommandPalette from './components/CommandPalette'
+import Dashboard from './components/Dashboard'
 import FallbackImage from './components/FallbackImage'
 import Login from './components/Login'
 import Settings from './components/Settings'
+import Billing from './components/Billing'
 import { clearStoredUser, getStoredUser } from './utils/authStorage'
 import { fetchModels, optimizePromptStream, createImageJob, fetchJob } from './api/backend'
 import { useSettings } from './hooks/useSettings'
 import { useConversations } from './hooks/useConversations'
 import { usePromptFavorites } from './hooks/usePromptFavorites'
+import { useTheme } from './hooks/useTheme'
+import { useAccent } from './hooks/useAccent'
 import { getSize, readFileAsDataURL } from './utils/image'
 import { IMAGE_MODEL_REGEX, OPTIMIZER_MODEL_REGEX } from './utils/constants'
 import { applyPromptReviewEdit } from './utils/promptOptimization'
@@ -71,6 +77,8 @@ export default function App() {
     saveConversation, deleteConversation, addTurn, getConversation,
   } = useConversations()
   const { addFavorite, removeFavorite, isFavorite } = usePromptFavorites()
+  const { isDark, toggleTheme } = useTheme()
+  const { accent, setAccent, presets: accentPresets } = useAccent()
 
   const IS_DEV = import.meta.env.DEV
 
@@ -104,8 +112,21 @@ export default function App() {
 
   const [promptMarketOpen, setPromptMarketOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [billingOpen, setBillingOpen] = useState(false)
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false)
 
   const [models, setModels] = useState([])
+
+  useEffect(() => {
+    const handleKey = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault()
+        setCommandPaletteOpen((v) => !v)
+      }
+    }
+    document.addEventListener('keydown', handleKey)
+    return () => document.removeEventListener('keydown', handleKey)
+  }, [])
 
   const imageModels = useMemo(
     () => filterImageModels(models),
@@ -159,8 +180,13 @@ export default function App() {
     setLoginUser(null)
     updateConfig({ endpoint: '', apiKey: '', groupId: null, groupName: '' })
     setSettingsOpen(false)
+    setBillingOpen(false)
     setShowLogin(true)
   }, [updateConfig])
+
+  const handlePaymentComplete = useCallback(() => {
+    setSettingsOpen(true)
+  }, [])
 
   const showError = useCallback((msg) => {
     setError(msg)
@@ -761,6 +787,7 @@ export default function App() {
         onToggle={() => setSidebarOpen(!sidebarOpen)}
         onLogout={loginUser ? handleLogout : undefined}
         onOpenSettings={loginUser ? () => setSettingsOpen(true) : undefined}
+        onOpenBilling={loginUser ? () => setBillingOpen(true) : undefined}
       />
 
       <div className="flex flex-1 flex-col min-w-0">
@@ -771,8 +798,16 @@ export default function App() {
           groupName={config.groupName}
           onOpenSettings={loginUser ? () => setSettingsOpen(true) : undefined}
           onLogout={loginUser ? handleLogout : undefined}
+          onOpenBilling={loginUser ? () => setBillingOpen(true) : undefined}
           onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
+          isDark={isDark}
+          onToggleTheme={toggleTheme}
+          onOpenCommandPalette={() => setCommandPaletteOpen(true)}
         />
+
+        {view === 'dashboard' && (
+          <Dashboard conversations={conversations} />
+        )}
 
         {view === 'chat' && (
           <div className="flex-1 relative overflow-hidden">
@@ -805,12 +840,7 @@ export default function App() {
                         </div>
 
                         {(turn.status === 'pending' || turn.status === 'optimizing') && (
-                          <div className="mt-s-3 h-1.5 overflow-hidden rounded-full bg-surface-03">
-                            <div
-                              className="h-full rounded-full bg-accent transition-all"
-                              style={{ width: `${Math.max(5, Math.min(100, turn.progress || 5))}%`, transitionDuration: '500ms' }}
-                            />
-                          </div>
+                          <StageProgress turn={turn} />
                         )}
 
                         {turn.status === 'optimizing' && optimizerStatus && (
@@ -930,6 +960,17 @@ export default function App() {
           onRefreshModels={refreshModels}
           onUpdateConfig={updateConfig}
           user={loginUser}
+          accent={accent}
+          accentPresets={accentPresets}
+          onAccentChange={setAccent}
+        />
+      )}
+
+      {billingOpen && (
+        <Billing
+          onClose={() => setBillingOpen(false)}
+          onPaymentComplete={handlePaymentComplete}
+          open={billingOpen}
         />
       )}
 
@@ -971,6 +1012,16 @@ export default function App() {
           open={previewOpen}
         />
       )}
+
+      <CommandPalette
+        open={commandPaletteOpen}
+        onClose={() => setCommandPaletteOpen(false)}
+        conversations={conversations}
+        onNavigateConversation={(id) => { handleSelectConversation(id) }}
+        onSwitchView={setView}
+        onOpenSettings={loginUser ? () => setSettingsOpen(true) : undefined}
+        onCreateConversation={handleCreateConversation}
+      />
     </div>
   )
 }

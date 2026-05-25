@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
-import { Check, Fingerprint, Globe, KeyRound, RefreshCw } from 'lucide-react'
+import { Check, Fingerprint, Globe, KeyRound, RefreshCw, Palette } from 'lucide-react'
 import { authGenerateKey, authGroups } from '../api/backend'
 import Drawer from './Drawer'
 import GroupPicker from './GroupPicker'
+import AccentPicker from './AccentPicker'
 
-export default function Settings({ config, user, onUpdateConfig, onClose, onRefreshModels }) {
+export default function Settings({ config, user, onUpdateConfig, onClose, onRefreshModels, accent, accentPresets, onAccentChange }) {
   const [groups, setGroups] = useState([])
   const [selectedGroupId, setSelectedGroupId] = useState(config.groupId)
   const [loading, setLoading] = useState(Boolean(user?.id))
@@ -139,6 +140,18 @@ export default function Settings({ config, user, onUpdateConfig, onClose, onRefr
             刷新模型列表
           </button>
         )}
+      </div>
+
+      <div className="mt-s-6 space-y-s-4 border-t border-border-subtle pt-s-5">
+        <div className="flex items-center gap-s-2 text-sm font-medium text-ink-secondary">
+          <Palette size={14} />
+          主题色
+        </div>
+        <AccentPicker
+          current={accent}
+          presets={accentPresets}
+          onChange={onAccentChange}
+        />
       </div>
     </Drawer>
   )

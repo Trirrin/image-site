@@ -1,4 +1,4 @@
-import { Menu, Settings, LogOut, Image } from 'lucide-react'
+import { Menu, Settings, LogOut, Image, Sun, Moon, Command, CreditCard } from 'lucide-react'
 import StatusChip from './StatusChip'
 
 export default function Topbar({
@@ -7,8 +7,12 @@ export default function Topbar({
   isConfigured,
   groupName,
   onOpenSettings,
+  onOpenBilling,
   onLogout,
   onToggleSidebar,
+  isDark,
+  onToggleTheme,
+  onOpenCommandPalette,
 }) {
   return (
     <header className="flex h-14 shrink-0 items-center justify-between border-b border-border-subtle bg-surface-01 px-s-5">
@@ -28,6 +32,7 @@ export default function Topbar({
           <span className="font-display text-lg text-ink-primary">Image Site</span>
         </div>
         <div className="hidden md:flex items-center gap-s-2 ml-s-3">
+          <ViewTab active={view === 'dashboard'} onClick={() => onViewChange('dashboard')}>概览</ViewTab>
           <ViewTab active={view === 'chat'} onClick={() => onViewChange('chat')}>生成</ViewTab>
           <ViewTab active={view === 'library'} onClick={() => onViewChange('library')}>图库</ViewTab>
         </div>
@@ -41,6 +46,32 @@ export default function Topbar({
         )}
 
         <div className="hidden md:flex items-center gap-s-1">
+          <button
+            aria-label="命令面板"
+            className="grid h-8 w-8 place-items-center rounded-input text-ink-muted transition-colors hover:bg-surface-02 hover:text-ink-primary"
+            onClick={onOpenCommandPalette}
+            type="button"
+          >
+            <Command size={15} />
+          </button>
+          <button
+            aria-label={isDark ? '切换亮色模式' : '切换暗色模式'}
+            className="grid h-8 w-8 place-items-center rounded-input text-ink-muted transition-colors hover:bg-surface-02 hover:text-ink-primary"
+            onClick={onToggleTheme}
+            type="button"
+          >
+            {isDark ? <Sun size={15} /> : <Moon size={15} />}
+          </button>
+          {onOpenBilling && (
+            <button
+              aria-label="Subscription"
+              className="grid h-8 w-8 place-items-center rounded-input text-ink-muted transition-colors hover:bg-surface-02 hover:text-ink-primary"
+              onClick={onOpenBilling}
+              type="button"
+            >
+              <CreditCard size={15} />
+            </button>
+          )}
           {onOpenSettings && (
             <button
               aria-label="设置"
@@ -64,6 +95,17 @@ export default function Topbar({
         </div>
 
         <div className="flex items-center gap-s-1 md:hidden">
+          {onOpenBilling && (
+            <button
+              aria-label="Subscription"
+              className="grid h-8 w-8 place-items-center rounded-input text-ink-muted transition-colors hover:bg-surface-02 hover:text-ink-primary"
+              onClick={onOpenBilling}
+              type="button"
+            >
+              <CreditCard size={15} />
+            </button>
+          )}
+          <ViewTab active={view === 'dashboard'} onClick={() => onViewChange('dashboard')}>概览</ViewTab>
           <ViewTab active={view === 'chat'} onClick={() => onViewChange('chat')}>生成</ViewTab>
           <ViewTab active={view === 'library'} onClick={() => onViewChange('library')}>图库</ViewTab>
         </div>

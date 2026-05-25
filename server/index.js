@@ -13,7 +13,8 @@ const JOB_TTL_MS = 48 * 60 * 60 * 1000
 const MAX_BODY_BYTES = 50 * 1024 * 1024
 const MAX_IMAGE_BYTES = 18 * 1024 * 1024
 const RUNNING_TIMEOUT_MS = 30 * 60 * 1000
-const SUB2API_API_URL = (process.env.SUB2API_API_URL || 'http://127.0.0.1:10001').replace(/\/+$/, '')
+const SUB2API_API_URL = normalizeBaseUrl(process.env.SUB2API_API_URL || 'http://127.0.0.1:10001')
+const SUB2API_CONTROL_API_URL = normalizeBaseUrl(process.env.SUB2API_CONTROL_API_URL || 'http://127.0.0.1:10000/api/v1')
 
 const DB_PASSWORD = readRequiredEnv('SUB2API_DB_PASSWORD')
 const AUTH_SECRET = readRequiredEnv('IMAGE_SITE_AUTH_SECRET')
@@ -38,6 +39,10 @@ function readRequiredEnv(name) {
   const value = process.env[name]?.trim()
   if (!value) throw new Error(`${name} is required`)
   return value
+}
+
+function normalizeBaseUrl(value) {
+  return String(value || '').trim().replace(/\/+$/, '')
 }
 
 await mkdir(JOB_DIR, { recursive: true })
@@ -67,6 +72,30 @@ const server = createServer(async (req, res) => {
     }
     if (url.pathname === '/api/auth/generate-key' && req.method === 'POST') {
       await handleGenerateKey(req, res)
+      return
+    }
+    if (url.pathname === '/api/billing/checkout-info' && req.method === 'GET') {
+      await handleBillingProxy(req, res, '/payment/checkout-info')
+      return
+    }
+    if (url.pathname === '/api/billing/subscriptions/summary' && req.method === 'GET') {
+      await handleBillingProxy(req, res, '/subscriptions/summary')
+      return
+    }
+    if (url.pathname === '/api/billing/subscriptions/active' && req.method === 'GET') {
+      await handleBillingProxy(req, res, '/subscriptions/active')
+      return
+    }
+    if (url.pathname === '/api/billing/orders' && req.method === 'POST') {
+      await handleBillingProxy(req, res, '/payment/orders', { method: 'POST', body: await readJson(req) })
+      return
+    }
+    if (url.pathname === '/api/billing/orders/my' && req.method === 'GET') {
+      await handleBillingProxy(req, res, `/payment/orders/my${url.search}`)
+      return
+    }
+    if (url.pathname === '/api/billing/orders/verify' && req.method === 'POST') {
+      await handleBillingProxy(req, res, '/payment/orders/verify', { method: 'POST', body: await readJson(req) })
       return
     }
     if (url.pathname === '/api/models' && req.method === 'POST') {
@@ -128,14 +157,43 @@ async function handleAuthLogin(req, res) {
     sendJson(res, 403, { error: 'account is not active' })
     return
   }
-  sendJson(res, 200, { user: { id: user.id, email: user.email, token: createAuthToken(user) } })
+
+  const subAuth = await trySub2apiLogin(email, password)
+  sendJson(res, 200, {
+    user: {
+      id: user.id,
+      email: user.email,
+      token: createAuthToken(user, subAuth),
+      paymentReady: Boolean(subAuth?.accessToken),
+    },
+  })
 }
 
-function createAuthToken(user) {
+async function trySub2apiLogin(email, password) {
+  try {
+    const data = await requestSub2api('/auth/login', {
+      method: 'POST',
+      body: { email, password },
+    })
+    if (!data?.access_token) return null
+    return {
+      accessToken: data.access_token,
+      refreshToken: data.refresh_token || '',
+      expiresAt: data.expires_in ? Date.now() + Number(data.expires_in) * 1000 : 0,
+    }
+  } catch {
+    return null
+  }
+}
+
+function createAuthToken(user, subAuth = null) {
   const payload = Buffer.from(JSON.stringify({
     sub: String(user.id),
     email: user.email,
     exp: Date.now() + AUTH_TOKEN_TTL_MS,
+    subAccessToken: subAuth?.accessToken || '',
+    subRefreshToken: subAuth?.refreshToken || '',
+    subTokenExpiresAt: subAuth?.expiresAt || 0,
   })).toString('base64url')
   return `${payload}.${signAuthPayload(payload)}`
 }
@@ -168,7 +226,13 @@ function parseAuthToken(token) {
     const userId = Number(data.sub)
     if (!userId || !Number.isFinite(userId)) return null
     if (!Number.isFinite(data.exp) || data.exp < Date.now()) return null
-    return { userId, email: data.email || '' }
+    return {
+      userId,
+      email: data.email || '',
+      subAccessToken: typeof data.subAccessToken === 'string' ? data.subAccessToken : '',
+      subRefreshToken: typeof data.subRefreshToken === 'string' ? data.subRefreshToken : '',
+      subTokenExpiresAt: Number.isFinite(data.subTokenExpiresAt) ? data.subTokenExpiresAt : 0,
+    }
   } catch {
     return null
   }
@@ -178,6 +242,79 @@ function timingSafeTextEqual(a, b) {
   const left = Buffer.from(a || '')
   const right = Buffer.from(b || '')
   return left.length === right.length && timingSafeEqual(left, right)
+}
+
+async function handleBillingProxy(req, res, path, options = {}) {
+  const auth = requireAuth(req, res)
+  if (!auth) return
+  if (!auth.subAccessToken) {
+    sendJson(res, 403, { error: 'payment session is unavailable; please log in again' })
+    return
+  }
+
+  try {
+    const data = await requestSub2api(path, {
+      method: options.method || 'GET',
+      token: auth.subAccessToken,
+      body: options.body,
+      headers: {
+        'Accept-Language': req.headers['accept-language'] || '',
+      },
+    })
+    sendJson(res, 200, data)
+  } catch (error) {
+    sendJson(res, error.status || 502, { error: error.message || 'sub2api request failed' })
+  }
+}
+
+async function requestSub2api(path, { method = 'GET', token = '', body, headers = {} } = {}) {
+  const requestHeaders = {
+    Accept: 'application/json',
+    ...headers,
+  }
+  if (token) requestHeaders.Authorization = `Bearer ${token}`
+  const init = { method, headers: requestHeaders }
+  if (body !== undefined) {
+    requestHeaders['Content-Type'] = 'application/json'
+    init.body = JSON.stringify(body)
+  }
+
+  const response = await fetch(`${SUB2API_CONTROL_API_URL}${path}`, init)
+  const text = await response.text()
+  const payload = parseJsonText(text)
+  const unwrapped = unwrapSub2apiPayload(payload)
+  if (!response.ok) {
+    const error = new Error(extractSub2apiError(payload, text) || `sub2api request failed with ${response.status}`)
+    error.status = response.status
+    throw error
+  }
+  if (unwrapped?.error) {
+    const error = new Error(unwrapped.error)
+    error.status = unwrapped.status || 502
+    throw error
+  }
+  return unwrapped?.data ?? null
+}
+
+function parseJsonText(text) {
+  if (!text) return null
+  try { return JSON.parse(text) }
+  catch { return null }
+}
+
+function unwrapSub2apiPayload(payload) {
+  if (!payload || typeof payload !== 'object' || !Object.prototype.hasOwnProperty.call(payload, 'code')) {
+    return { data: payload }
+  }
+  if (payload.code === 0) return { data: payload.data ?? null }
+  return { error: payload.message || payload.reason || 'sub2api request failed', status: Number(payload.code) || 502 }
+}
+
+function extractSub2apiError(payload, fallbackText) {
+  if (payload && typeof payload === 'object') {
+    return payload.message || payload.error || payload.reason || ''
+  }
+  return fallbackText
 }
 
 async function handleAuthGroups(req, res) {
