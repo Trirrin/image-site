@@ -1,4 +1,4 @@
-import { SIZE_MAP } from './constants'
+import { SIZE_MAP } from './constants.js'
 
 export function getSize(aspectRatio, resolution) {
   if (resolution === 'auto') return ''
