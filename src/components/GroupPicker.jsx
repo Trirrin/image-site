@@ -5,9 +5,9 @@ export default function GroupPicker({
   selectedGroupId,
   loading = false,
   error = '',
-  title = 'Select Group',
-  actionLabel = 'Use Group',
-  loadingLabel = 'Loading...',
+  title = '选择分组',
+  actionLabel = '使用分组',
+  loadingLabel = '加载中...',
   onSelectGroup,
   onConfirm,
 }) {

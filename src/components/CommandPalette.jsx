@@ -134,7 +134,7 @@ function CommandPaletteInner({
             placeholder="搜索会话、切换视图、执行操作…"
             value={query}
           />
-          <kbd className="hidden rounded-input border border-border-subtle bg-surface-02 px-s-2 py-s-0.5 font-mono text-[10px] text-ink-faint sm:inline-block">ESC</kbd>
+          <kbd className="hidden rounded-input border border-border-subtle bg-surface-02 px-s-2 py-s-0.5 text-[10px] text-ink-faint sm:inline-block">退出</kbd>
         </div>
 
         <ul ref={listRef} className="max-h-[360px] overflow-y-auto py-s-2">
@@ -175,7 +175,7 @@ function CommandPaletteInner({
             ↵ 选择
           </span>
           <span className="flex items-center gap-s-1 text-[10px] text-ink-faint">
-            esc 关闭
+            退出：关闭
           </span>
         </div>
       </div>

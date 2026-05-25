@@ -88,7 +88,7 @@ export default function App() {
         endpoint: 'https://mock-api.example.com',
         apiKey: 'mk-dev-xxxxxxxxxxxxxxxxxxxxxxxx',
         groupId: 'grp-demo',
-        groupName: 'Demo Group',
+        groupName: '演示分组',
       })
     }
   }, [IS_DEV, isConfigured, updateConfig])
@@ -822,7 +822,7 @@ export default function App() {
                     <div>
                       <h2 className="font-display text-xl text-ink-primary">开始创作</h2>
                       <p className="mt-s-1 text-sm text-ink-muted max-w-md">
-                        在下方输入描述，选择模型和参数，生成令人惊叹的 AI 图像。
+                        在下方输入描述，选择模型和参数，生成惊艳的人工智能图像。
                       </p>
                     </div>
                   </div>

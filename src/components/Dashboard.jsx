@@ -63,7 +63,7 @@ export default function Dashboard({ conversations }) {
     <section className="flex h-full flex-col overflow-y-auto">
       <div className="mx-auto w-full max-w-6xl px-s-5 py-s-6">
         <h1 className="font-display text-2xl text-ink-primary">概览</h1>
-        <p className="mt-s-1 text-sm text-ink-muted">你的 AI 图像生成统计数据</p>
+        <p className="mt-s-1 text-sm text-ink-muted">你的人工智能图像生成统计数据</p>
 
         <div className="mt-s-6 grid grid-cols-2 gap-s-4 lg:grid-cols-4">
           {cards.map((card) => {

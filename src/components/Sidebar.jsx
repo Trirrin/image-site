@@ -44,7 +44,7 @@ export default function Sidebar({
             <Image size={14} />
           </div>
           {expanded && (
-            <span className="font-display text-lg text-ink-primary">Image Site</span>
+            <span className="font-display text-lg text-ink-primary">图像工坊</span>
           )}
           {expanded && (
             <button
@@ -156,22 +156,22 @@ export default function Sidebar({
             <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-s-1 px-s-1">
               {onOpenBilling && (
                 <button
-                  aria-label="Subscription"
+                  aria-label="订阅"
                   className="flex min-w-0 items-center gap-s-2 rounded-input px-s-3 py-s-2 text-sm text-ink-muted transition-colors hover:bg-surface-02 hover:text-ink-primary"
                   onClick={onOpenBilling}
-                  title="Subscription"
+                  title="订阅"
                   type="button"
                 >
                   <CreditCard size={14} className="shrink-0" />
-                  <span className="truncate">Plan</span>
+                  <span className="truncate">订阅</span>
                 </button>
               )}
               {onOpenSettings && (
                 <button
-                  aria-label="Settings"
+                  aria-label="设置"
                   className="grid h-9 w-9 shrink-0 place-items-center rounded-input text-ink-muted transition-colors hover:bg-surface-02 hover:text-ink-primary"
                   onClick={onOpenSettings}
-                  title="Settings"
+                  title="设置"
                   type="button"
                 >
                   <Settings size={15} />
@@ -179,10 +179,10 @@ export default function Sidebar({
               )}
               {onLogout && (
                 <button
-                  aria-label="Logout"
+                  aria-label="退出"
                   className="grid h-9 w-9 shrink-0 place-items-center rounded-input text-ink-muted transition-colors hover:bg-surface-02 hover:text-ink-primary"
                   onClick={onLogout}
-                  title="Logout"
+                  title="退出"
                   type="button"
                 >
                   <LogOut size={15} />
@@ -193,7 +193,7 @@ export default function Sidebar({
             <div className="flex flex-col items-center gap-s-2">
               {onOpenBilling && (
                 <button
-                  aria-label="Subscription"
+                  aria-label="订阅"
                   className="grid h-9 w-9 place-items-center rounded-input text-ink-muted transition-colors hover:bg-surface-02 hover:text-ink-primary"
                   onClick={onOpenBilling}
                   type="button"
@@ -213,7 +213,7 @@ export default function Sidebar({
               )}
               {onLogout && (
                 <button
-                  aria-label="Logout"
+                  aria-label="退出"
                   className="grid h-9 w-9 place-items-center rounded-input text-ink-muted transition-colors hover:bg-surface-02 hover:text-ink-primary"
                   onClick={onLogout}
                   type="button"
@@ -224,10 +224,10 @@ export default function Sidebar({
             </div>
           )}
           <button
-            aria-label={expanded ? 'Collapse sidebar' : 'Expand sidebar'}
+            aria-label={expanded ? '收起侧栏' : '展开侧栏'}
             className="flex h-9 w-full items-center justify-center gap-s-1 rounded-input py-s-2 text-[11px] text-ink-faint transition-colors hover:bg-surface-02 hover:text-ink-muted"
             onClick={() => setExpanded(!expanded)}
-            title={expanded ? 'Collapse sidebar' : 'Expand sidebar'}
+            title={expanded ? '收起侧栏' : '展开侧栏'}
             type="button"
           >
             {expanded ? <><ChevronLeft size={12} /> 收起</> : <ChevronRight size={12} />}

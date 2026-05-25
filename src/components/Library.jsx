@@ -92,7 +92,7 @@ export default function Library({
         }
       } else {
         const res = await fetch(primaryUrl)
-        if (!res.ok && fallbackUrl !== primaryUrl) throw new Error('primary image unavailable')
+        if (!res.ok && fallbackUrl !== primaryUrl) throw new Error('主图不可用')
         if (res.ok) {
           const blob = await res.blob()
           blobUrl = URL.createObjectURL(blob)
@@ -104,7 +104,7 @@ export default function Library({
     }
     const a = document.createElement('a')
     a.href = url
-    const filename = `image-site-${item.image.id || item.turnId || 'download'}.png`
+    const filename = `图片-${item.image.id || item.turnId || 'download'}.png`
     const seg = fallbackUrl.split('?')[0].split('/').pop()
     a.download = seg && seg.includes('.') ? seg : filename
     document.body.appendChild(a)
@@ -121,7 +121,7 @@ export default function Library({
           <input
             className="h-9 w-full rounded-input border border-border-subtle bg-surface-01 pl-9 pr-4 text-sm text-ink-primary outline-none transition placeholder:text-ink-faint focus:border-accent focus:ring-2 focus:ring-accent/20"
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="搜索 prompt、对话标题、模型…"
+            placeholder="搜索提示词、对话标题、模型…"
             value={query}
           />
         </div>
@@ -309,7 +309,7 @@ function GridCard({ item, onPreview, onDelete, onDownload, onJump }) {
 }
 
 function TableHeader() {
-  const cols = ['缩略图', 'Prompt', '模型', '尺寸', '日期', '操作']
+  const cols = ['缩略图', '提示词', '模型', '尺寸', '日期', '操作']
   return (
     <div className="grid grid-cols-[3.5rem_1fr_6rem_5rem_6.5rem_7rem] gap-2 border-b border-border-subtle px-2 py-2 font-mono text-xs uppercase text-ink-faint">
       {cols.map((c) => (

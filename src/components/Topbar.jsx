@@ -29,7 +29,7 @@ export default function Topbar({
           <div className="grid h-6 w-6 place-items-center rounded-input bg-accent/10 text-accent">
             <Image size={12} />
           </div>
-          <span className="font-display text-lg text-ink-primary">Image Site</span>
+          <span className="font-display text-lg text-ink-primary">图像工坊</span>
         </div>
         <div className="hidden md:flex items-center gap-s-2 ml-s-3">
           <ViewTab active={view === 'dashboard'} onClick={() => onViewChange('dashboard')}>概览</ViewTab>
@@ -64,7 +64,7 @@ export default function Topbar({
           </button>
           {onOpenBilling && (
             <button
-              aria-label="Subscription"
+              aria-label="订阅"
               className="grid h-8 w-8 place-items-center rounded-input text-ink-muted transition-colors hover:bg-surface-02 hover:text-ink-primary"
               onClick={onOpenBilling}
               type="button"
@@ -97,7 +97,7 @@ export default function Topbar({
         <div className="flex items-center gap-s-1 md:hidden">
           {onOpenBilling && (
             <button
-              aria-label="Subscription"
+              aria-label="订阅"
               className="grid h-8 w-8 place-items-center rounded-input text-ink-muted transition-colors hover:bg-surface-02 hover:text-ink-primary"
               onClick={onOpenBilling}
               type="button"

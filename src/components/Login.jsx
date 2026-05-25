@@ -16,7 +16,7 @@ export default function Login({ onLoginSuccess }) {
 
   const handleLogin = useCallback(async () => {
     if (!email.trim() || !password.trim()) {
-      setError('Please enter email and password')
+      setError('请输入邮箱和密码')
       return
     }
     setLoading(true)
@@ -27,7 +27,7 @@ export default function Login({ onLoginSuccess }) {
 
       const { groups: availableGroups } = await authGroups()
       if (availableGroups.length === 0) {
-        setError('No available groups. Please contact the administrator.')
+        setError('没有可用分组，请联系管理员')
         setLoading(false)
         return
       }
@@ -36,7 +36,7 @@ export default function Login({ onLoginSuccess }) {
       setStep('group')
       setLoading(false)
     } catch (err) {
-      setError(err.message || 'Login failed')
+      setError(err.message || '登录失败')
       setLoading(false)
     }
   }, [email, password])
@@ -48,14 +48,14 @@ export default function Login({ onLoginSuccess }) {
       const { key, endpoint, group } = await authGenerateKey({ name: 'image-site', groupId: gid })
       onLoginSuccess({ endpoint, apiKey: key, groupId: group.id, groupName: group.name })
     } catch (err) {
-      setError(err.message || 'Failed to generate key')
+      setError(err.message || '生成密钥失败')
       setLoading(false)
     }
   }, [onLoginSuccess])
 
   const handleGroupSelect = useCallback(() => {
     if (selectedGroupId == null) {
-      setError('Please select a group')
+      setError('请选择分组')
       return
     }
     doGenerateKey(selectedGroupId)
@@ -73,15 +73,15 @@ export default function Login({ onLoginSuccess }) {
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink-base/80 backdrop-blur">
         <div className="relative w-[min(92vw,28rem)] max-h-[92vh] overflow-y-auto rounded-card border border-border-subtle bg-surface-01 p-s-6 shadow-lift">
           <GroupPicker
-            actionLabel="Use Group"
+            actionLabel="使用分组"
             error={error}
             groups={groups}
             loading={loading}
-            loadingLabel="Loading Key..."
+            loadingLabel="正在生成密钥..."
             onConfirm={handleGroupSelect}
             onSelectGroup={setSelectedGroupId}
             selectedGroupId={selectedGroupId}
-            title="Select Group"
+            title="选择分组"
           />
         </div>
       </div>
@@ -96,8 +96,8 @@ export default function Login({ onLoginSuccess }) {
             <LogIn size={22} />
           </div>
           <div className="text-center">
-            <h2 className="font-display text-2xl text-ink-primary">Login</h2>
-            <p className="mt-s-1 text-sm text-ink-muted">Login with your sub2api account</p>
+            <h2 className="font-display text-2xl text-ink-primary">登录</h2>
+            <p className="mt-s-1 text-sm text-ink-muted">使用你的 sub2api 账号登录</p>
           </div>
         </div>
 
@@ -109,26 +109,26 @@ export default function Login({ onLoginSuccess }) {
 
         <div className="space-y-s-4">
           <label className="grid gap-s-2">
-            <span className="text-sm font-medium text-ink-secondary">Email</span>
+            <span className="text-sm font-medium text-ink-secondary">邮箱</span>
             <input
               className="h-10 w-full rounded-input border border-border-subtle bg-surface-02 px-3.5 text-sm text-ink-primary outline-none transition placeholder:text-ink-muted focus:ring-4 focus:ring-accent-soft"
               disabled={loading}
               onChange={(e) => setEmail(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="user@example.com"
+              placeholder="请输入邮箱"
               type="email"
               value={email}
             />
           </label>
 
           <label className="grid gap-s-2">
-            <span className="text-sm font-medium text-ink-secondary">Password</span>
+            <span className="text-sm font-medium text-ink-secondary">密码</span>
             <input
               className="h-10 w-full rounded-input border border-border-subtle bg-surface-02 px-3.5 text-sm text-ink-primary outline-none transition placeholder:text-ink-muted focus:ring-4 focus:ring-accent-soft"
               disabled={loading}
               onChange={(e) => setPassword(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Enter password"
+              placeholder="请输入密码"
               type="password"
               value={password}
             />
@@ -142,7 +142,7 @@ export default function Login({ onLoginSuccess }) {
           type="button"
         >
           {loading ? <Loader2 size={16} className="animate-spin" /> : <ChevronRight size={16} />}
-          {loading ? 'Logging in...' : 'Login'}
+          {loading ? '正在登录...' : '登录'}
         </button>
       </div>
     </div>

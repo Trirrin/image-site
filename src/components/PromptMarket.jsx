@@ -2,21 +2,25 @@ import { useState, useEffect, useMemo } from 'react'
 import { X, Search, Star, Copy, Check } from 'lucide-react'
 
 const FALLBACK_PROMPTS = [
-  { id: 'p1', title: '赛博朋克城市夜景', prompt: 'A futuristic cyberpunk city at night with neon signs, flying cars, rain-slicked streets, cinematic lighting, ultra-detailed', category: '场景' },
-  { id: 'p2', title: '可爱猫咪肖像', prompt: 'A cute fluffy kitten looking at the camera, soft natural lighting, bokeh background, professional pet photography, high quality', category: '动物' },
-  { id: 'p3', title: '极简室内设计', prompt: 'Minimalist interior design, Scandinavian style, warm sunlight through windows, clean lines, cozy atmosphere, architectural photography', category: '设计' },
-  { id: 'p4', title: '奇幻森林精灵', prompt: 'A mystical forest elf with glowing wings, magical atmosphere, enchanted forest, ethereal lighting, fantasy art, intricate details', category: '人物' },
-  { id: 'p5', title: '星空下的雪山', prompt: 'Snow-capped mountain under the starry night sky, Milky Way visible, serene landscape, long exposure photography, ultra HD', category: '风景' },
-  { id: 'p6', title: '复古蒸汽波', prompt: 'Vaporwave aesthetic, retro 80s style, pastel colors, marble statue, palm trees, synthwave, glitch effect, nostalgic', category: '风格' },
-  { id: 'p7', title: '精致美食摄影', prompt: 'Gourmet food photography, beautifully plated dish, soft window light, shallow depth of field, restaurant quality, appetizing, 8k', category: '美食' },
-  { id: 'p8', title: '水墨山水画', prompt: 'Traditional Chinese ink wash painting, misty mountains, pine trees, waterfall, ancient temple, minimalist brush strokes, serene', category: '艺术' },
-  { id: 'p9', title: '未来机甲战士', prompt: 'Futuristic mecha warrior, detailed mechanical design, glowing energy core, cinematic pose, sci-fi concept art, epic scale', category: '人物' },
-  { id: 'p10', title: '樱花树下', prompt: 'Cherry blossom trees in full bloom, petals falling in the wind, soft pink atmosphere, Japanese garden, spring season, dreamy', category: '风景' },
-  { id: 'p11', title: '抽象几何艺术', prompt: 'Abstract geometric art, vibrant colors, Bauhaus style, clean lines, modern composition, balanced shapes, gallery quality', category: '艺术' },
-  { id: 'p12', title: '蒸汽朋克机械', prompt: 'Steampunk mechanical contraption, brass gears, copper pipes, Victorian era design, intricate craftsmanship, warm tones', category: '风格' },
+  { id: 'p1', title: '赛博朋克城市夜景', prompt: '未来感赛博朋克城市夜景，霓虹招牌、飞行汽车、雨后湿润街道、电影感光影、超高细节', category: '场景' },
+  { id: 'p2', title: '可爱猫咪肖像', prompt: '可爱的毛茸茸小猫看向镜头，自然柔光，虚化背景，专业宠物摄影，高质量', category: '动物' },
+  { id: 'p3', title: '极简室内设计', prompt: '极简室内设计，斯堪的纳维亚风格，温暖阳光穿过窗户，干净线条，舒适氛围，建筑摄影', category: '设计' },
+  { id: 'p4', title: '奇幻森林精灵', prompt: '神秘森林精灵，发光翅膀，魔法氛围，迷雾森林，空灵光线，幻想艺术，精致细节', category: '人物' },
+  { id: 'p5', title: '星空下的雪山', prompt: '星空下的雪山，清晰可见的银河，宁静风景，长曝光摄影，超高清', category: '风景' },
+  { id: 'p6', title: '复古蒸汽波', prompt: '蒸汽波美学，复古 80 年代风格，粉彩色调，大理石雕像，棕榈树，合成波，故障效果，怀旧氛围', category: '风格' },
+  { id: 'p7', title: '精致美食摄影', prompt: '精致美食摄影，漂亮摆盘，柔和窗光，浅景深，餐厅级质感，诱人食欲，8K', category: '美食' },
+  { id: 'p8', title: '水墨山水画', prompt: '传统中国水墨画，雾气山峦，松树，瀑布，古寺，极简笔触，宁静氛围', category: '艺术' },
+  { id: 'p9', title: '未来机甲战士', prompt: '未来机甲战士，精细机械结构，发光能源核心，电影感姿态，科幻概念艺术，宏大尺度', category: '人物' },
+  { id: 'p10', title: '樱花树下', prompt: '盛开的樱花树，花瓣随风飘落，柔粉色氛围，日式庭园，春季，梦幻感', category: '风景' },
+  { id: 'p11', title: '抽象几何艺术', prompt: '抽象几何艺术，鲜明色彩，包豪斯风格，干净线条，现代构图，均衡形状，画廊级品质', category: '艺术' },
+  { id: 'p12', title: '蒸汽朋克机械', prompt: '蒸汽朋克机械装置，黄铜齿轮，铜管，维多利亚时代设计，复杂工艺，暖色调', category: '风格' },
 ]
 
 const CATEGORIES = ['全部', '场景', '动物', '设计', '人物', '风景', '风格', '美食', '艺术']
+
+function hasChineseText(value) {
+  return /[\u4e00-\u9fff]/.test(String(value || ''))
+}
 
 export default function PromptMarket({ open, onClose, onSelectPrompt, onToggleFavorite, isFavorite }) {
   const [query, setQuery] = useState('')
@@ -35,8 +39,8 @@ export default function PromptMarket({ open, onClose, onSelectPrompt, onToggleFa
             title: p.title || p.prompt?.slice(0, 20) || `提示 ${i + 1}`,
             prompt: p.prompt || p.text || '',
             category: p.category || p.tag || '通用',
-          }))
-          setPrompts(mapped)
+          })).filter((p) => hasChineseText(p.prompt))
+          if (mapped.length > 0) setPrompts(mapped)
         }
       })
       .catch(() => { /* fallback to defaults */ })

@@ -12,13 +12,13 @@ import Drawer from './Drawer'
 import { buildPaymentReturnUrl } from '../utils/paymentReturn'
 
 const METHOD_LABELS = {
-  alipay: 'Alipay',
-  wxpay: 'WeChat Pay',
-  alipay_direct: 'Alipay',
-  wxpay_direct: 'WeChat Pay',
-  stripe: 'Stripe',
-  easypay: 'EasyPay',
-  airwallex: 'Airwallex',
+  alipay: '支付宝',
+  wxpay: '微信支付',
+  alipay_direct: '支付宝',
+  wxpay_direct: '微信支付',
+  stripe: '银行卡',
+  easypay: '易支付',
+  airwallex: '空中云汇',
 }
 
 const METHOD_ICONS = {
@@ -32,6 +32,16 @@ const METHOD_ICONS = {
 }
 
 const TERMINAL_STATUSES = new Set(['COMPLETED', 'PAID', 'FAILED', 'CANCELLED', 'EXPIRED', 'REFUNDED'])
+
+const ORDER_STATUS_LABELS = {
+  COMPLETED: '已完成',
+  PAID: '已支付',
+  PENDING: '待支付',
+  FAILED: '失败',
+  CANCELLED: '已取消',
+  EXPIRED: '已过期',
+  REFUNDED: '已退款',
+}
 
 export default function Billing({ open, onClose, onPaymentComplete }) {
   const [checkout, setCheckout] = useState(null)
@@ -66,7 +76,7 @@ export default function Billing({ open, onClose, onPaymentComplete }) {
       setSelectedMethod((current) => current || nextMethods[0]?.key || '')
       setSelectedPlanId((current) => current || checkoutInfo?.plans?.[0]?.id || null)
     } catch (err) {
-      setError(err.message || 'Failed to load billing data')
+      setError(err.message || '加载订阅数据失败')
     } finally {
       setLoading(false)
     }
@@ -80,11 +90,11 @@ export default function Billing({ open, onClose, onPaymentComplete }) {
 
   async function handleCreateOrder() {
     if (!selectedPlan) {
-      setError('Select a plan first')
+      setError('请先选择套餐')
       return
     }
     if (!selectedMethod) {
-      setError('Select a payment method first')
+      setError('请先选择支付方式')
       return
     }
     setCreating(true)
@@ -100,7 +110,7 @@ export default function Billing({ open, onClose, onPaymentComplete }) {
       setOrderResult(result)
       if (result?.pay_url) window.open(result.pay_url, '_blank', 'noopener,noreferrer')
     } catch (err) {
-      setError(err.message || 'Failed to create order')
+      setError(err.message || '创建订单失败')
     } finally {
       setCreating(false)
     }
@@ -118,19 +128,19 @@ export default function Billing({ open, onClose, onPaymentComplete }) {
         if (order.status === 'COMPLETED' || order.status === 'PAID') onPaymentComplete?.()
       }
     } catch (err) {
-      setError(err.message || 'Failed to verify order')
+      setError(err.message || '校验订单失败')
     } finally {
       setVerifying(false)
     }
   }
 
   return (
-    <Drawer open={open} onClose={onClose} title="Subscription" description="Plans and payment are served by sub2api">
+    <Drawer open={open} onClose={onClose} title="订阅" description="套餐和支付由 sub2api 提供">
       <div className="space-y-s-5">
         <div className="flex items-center justify-between gap-s-3">
           <div className="min-w-0">
-            <p className="text-sm font-medium text-ink-primary">Active subscriptions</p>
-            <p className="mt-s-1 text-xs text-ink-muted">{summary?.active_count ?? 0} active</p>
+            <p className="text-sm font-medium text-ink-primary">当前订阅</p>
+            <p className="mt-s-1 text-xs text-ink-muted">{summary?.active_count ?? 0} 个生效中</p>
           </div>
           <button
             className="grid h-9 w-9 place-items-center rounded-input border border-border-subtle bg-surface-02 text-ink-muted transition hover:bg-surface-03 hover:text-ink-primary disabled:opacity-60"
@@ -158,11 +168,11 @@ export default function Billing({ open, onClose, onPaymentComplete }) {
             <section className="space-y-s-3">
               <div className="flex items-center gap-s-2 text-sm font-semibold text-ink-primary">
                 <CreditCard size={15} />
-                Plans
+                套餐
               </div>
               <div className="grid gap-s-3">
                 {plans.length === 0 ? (
-                  <p className="rounded-input border border-border-subtle bg-surface-02 px-s-3 py-s-3 text-sm text-ink-muted">No plans available</p>
+                  <p className="rounded-input border border-border-subtle bg-surface-02 px-s-3 py-s-3 text-sm text-ink-muted">暂无可用套餐</p>
                 ) : plans.map((plan) => (
                   <button
                     key={plan.id}
@@ -173,7 +183,7 @@ export default function Billing({ open, onClose, onPaymentComplete }) {
                     <div className="flex items-start justify-between gap-s-3">
                       <div className="min-w-0">
                         <p className="text-sm font-semibold text-ink-primary">{plan.name}</p>
-                        <p className="mt-s-1 text-xs text-ink-muted">{plan.group_name || plan.description || 'Subscription plan'}</p>
+                        <p className="mt-s-1 text-xs text-ink-muted">{plan.group_name || plan.description || '订阅套餐'}</p>
                       </div>
                       <div className="text-right">
                         <p className="text-base font-semibold text-ink-primary">{formatMoney(plan.price)}</p>
@@ -195,11 +205,11 @@ export default function Billing({ open, onClose, onPaymentComplete }) {
             <section className="space-y-s-3">
               <div className="flex items-center gap-s-2 text-sm font-semibold text-ink-primary">
                 <ReceiptText size={15} />
-                Payment method
+                支付方式
               </div>
               <div className="grid grid-cols-2 gap-s-2">
                 {methods.length === 0 ? (
-                  <p className="col-span-2 rounded-input border border-border-subtle bg-surface-02 px-s-3 py-s-3 text-sm text-ink-muted">No payment methods available</p>
+                  <p className="col-span-2 rounded-input border border-border-subtle bg-surface-02 px-s-3 py-s-3 text-sm text-ink-muted">暂无可用支付方式</p>
                 ) : methods.map((method) => (
                   <button
                     key={method.key}
@@ -222,15 +232,15 @@ export default function Billing({ open, onClose, onPaymentComplete }) {
               type="button"
             >
               {creating ? <Loader2 size={16} className="animate-spin" /> : <CreditCard size={16} />}
-              Create order
+              创建订单
             </button>
 
             {orderResult && (
               <section className="rounded-card border border-border-subtle bg-surface-02 p-s-4">
                 <div className="flex items-start justify-between gap-s-3">
                   <div>
-                    <p className="text-sm font-semibold text-ink-primary">Order #{orderResult.order_id}</p>
-                    <p className="mt-s-1 text-xs text-ink-muted">{orderResult.status || 'PENDING'} · {formatMoney(orderResult.pay_amount ?? orderResult.amount)}</p>
+                    <p className="text-sm font-semibold text-ink-primary">订单 #{orderResult.order_id}</p>
+                    <p className="mt-s-1 text-xs text-ink-muted">{formatOrderStatus(orderResult.status || 'PENDING')} · {formatMoney(orderResult.pay_amount ?? orderResult.amount)}</p>
                   </div>
                   {(orderResult.status === 'COMPLETED' || orderResult.status === 'PAID') && <CheckCircle2 size={18} className="text-success" />}
                 </div>
@@ -238,7 +248,7 @@ export default function Billing({ open, onClose, onPaymentComplete }) {
                 {orderResult.qr_code && (
                   <div className="mt-s-3 rounded-input border border-border-subtle bg-surface-01 p-s-3">
                     {isImageSource(orderResult.qr_code) ? (
-                      <img className="mx-auto h-44 w-44 rounded-input bg-white object-contain p-s-2" src={orderResult.qr_code} alt="Payment QR code" />
+                      <img className="mx-auto h-44 w-44 rounded-input bg-white object-contain p-s-2" src={orderResult.qr_code} alt="支付二维码" />
                     ) : (
                       <p className="break-all font-mono text-xs text-ink-muted">{orderResult.qr_code}</p>
                     )}
@@ -254,7 +264,7 @@ export default function Billing({ open, onClose, onPaymentComplete }) {
                       target="_blank"
                     >
                       <ExternalLink size={14} />
-                      Open payment
+                      打开支付
                     </a>
                   )}
                   {orderResult.out_trade_no && (
@@ -265,7 +275,7 @@ export default function Billing({ open, onClose, onPaymentComplete }) {
                       type="button"
                     >
                       {verifying ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
-                      Verify
+                      校验订单
                     </button>
                   )}
                 </div>
@@ -274,13 +284,13 @@ export default function Billing({ open, onClose, onPaymentComplete }) {
 
             {orders.length > 0 && (
               <section className="space-y-s-2">
-                <p className="text-sm font-semibold text-ink-primary">Recent orders</p>
+                <p className="text-sm font-semibold text-ink-primary">最近订单</p>
                 <div className="space-y-s-2">
                   {orders.map((order) => (
                     <div key={order.id || order.out_trade_no} className="flex items-center justify-between gap-s-3 rounded-input border border-border-subtle bg-surface-02 px-s-3 py-s-2">
                       <div className="min-w-0">
                         <p className="truncate text-sm text-ink-primary">{order.out_trade_no || `#${order.id}`}</p>
-                        <p className="text-xs text-ink-muted">{formatDate(order.created_at)} · {order.status}</p>
+                        <p className="text-xs text-ink-muted">{formatDate(order.created_at)} · {formatOrderStatus(order.status)}</p>
                       </div>
                       <p className="shrink-0 text-sm font-medium text-ink-secondary">{formatMoney(order.pay_amount ?? order.amount)}</p>
                     </div>
@@ -299,7 +309,7 @@ function availableMethods(methods) {
   if (!methods || typeof methods !== 'object') return []
   return Object.entries(methods)
     .filter(([, limit]) => limit?.available !== false)
-    .map(([key]) => ({ key, label: METHOD_LABELS[key] || key }))
+    .map(([key]) => ({ key, label: METHOD_LABELS[key] || '其他支付' }))
 }
 
 function PaymentMethodLogo({ method }) {
@@ -319,10 +329,22 @@ function formatMoney(value) {
   return `¥${amount.toFixed(2)}`
 }
 
+function formatOrderStatus(status) {
+  return ORDER_STATUS_LABELS[status] || '未知'
+}
+
+function formatValidityUnit(unit) {
+  const normalized = String(unit || '').toLowerCase()
+  if (normalized === 'day' || normalized === 'days') return '天'
+  if (normalized === 'month' || normalized === 'months') return '个月'
+  if (normalized === 'year' || normalized === 'years') return '年'
+  return '天'
+}
+
 function formatValidity(plan) {
   const days = Number(plan?.validity_days || 0)
   const unit = plan?.validity_unit || 'day'
-  return days > 0 ? `${days} ${unit}` : 'subscription'
+  return days > 0 ? `${days} ${formatValidityUnit(unit)}` : '订阅'
 }
 
 function formatDate(value) {

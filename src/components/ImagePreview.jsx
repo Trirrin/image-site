@@ -29,7 +29,7 @@ export default function ImagePreview({ open, items, index, onClose, onIndexChang
         }
       } else {
         const res = await fetch(primaryUrl)
-        if (!res.ok && fallbackUrl !== primaryUrl) throw new Error('primary image unavailable')
+        if (!res.ok && fallbackUrl !== primaryUrl) throw new Error('主图不可用')
         if (res.ok) {
           const blob = await res.blob()
           blobUrl = URL.createObjectURL(blob)
@@ -42,7 +42,7 @@ export default function ImagePreview({ open, items, index, onClose, onIndexChang
     const a = document.createElement('a')
     a.href = url
     const seg = fallbackUrl.split('?')[0].split('/').pop()
-    a.download = (seg && seg.includes('.')) ? seg : `image-site-${item.image.id || Date.now()}.png`
+    a.download = (seg && seg.includes('.')) ? seg : `图片-${item.image.id || Date.now()}.png`
     document.body.appendChild(a)
     a.click()
     a.remove()

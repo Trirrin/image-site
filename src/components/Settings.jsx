@@ -28,7 +28,7 @@ export default function Settings({ config, user, onUpdateConfig, onClose, onRefr
         }
       })
       .catch((err) => {
-        if (alive) setError(err.message || 'Failed to load groups')
+        if (alive) setError(err.message || '加载分组失败')
       })
       .finally(() => {
         if (alive) setLoading(false)
@@ -38,11 +38,11 @@ export default function Settings({ config, user, onUpdateConfig, onClose, onRefr
 
   async function handleUseGroup() {
     if (!user?.id) {
-      setError('Please login first')
+      setError('请先登录')
       return
     }
     if (selectedGroupId == null) {
-      setError('Please select a group')
+      setError('请选择分组')
       return
     }
     setLoading(true)
@@ -56,20 +56,20 @@ export default function Settings({ config, user, onUpdateConfig, onClose, onRefr
       setSaved(true)
       setTimeout(() => setSaved(false), 2000)
     } catch (err) {
-      setError(err.message || 'Failed to switch group')
+      setError(err.message || '切换分组失败')
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <Drawer open={true} onClose={onClose} title="设置" description="管理 API 配置和模型">
+    <Drawer open={true} onClose={onClose} title="设置" description="管理接口配置和模型">
       <GroupPicker
         actionLabel={saved ? '已保存' : '保存'}
         error={error}
         groups={groups}
         loading={loading}
-        loadingLabel="Loading..."
+        loadingLabel="加载中..."
         onConfirm={handleUseGroup}
         onSelectGroup={setSelectedGroupId}
         selectedGroupId={selectedGroupId}
@@ -79,7 +79,7 @@ export default function Settings({ config, user, onUpdateConfig, onClose, onRefr
         <label className="grid gap-s-2">
           <span className="flex items-center gap-s-2 text-sm font-medium text-ink-secondary">
             <Globe size={14} />
-            NewAPI 地址
+            接口地址
           </span>
           <input
             className="h-10 w-full rounded-input border border-border-subtle bg-surface-03 px-3.5 font-mono text-xs text-ink-muted outline-none"
@@ -91,7 +91,7 @@ export default function Settings({ config, user, onUpdateConfig, onClose, onRefr
         <label className="grid gap-s-2">
           <span className="flex items-center gap-s-2 text-sm font-medium text-ink-secondary">
             <KeyRound size={14} />
-            API Key
+            接口密钥
           </span>
           <div className="relative">
             <input

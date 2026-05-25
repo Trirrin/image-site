@@ -20,7 +20,7 @@ export default function AccentPicker({ current, presets, onChange }) {
               className="h-3.5 w-3.5 shrink-0 rounded-full border border-white/20"
               style={{ backgroundColor: preset.accent }}
             />
-            <span>{preset.name}</span>
+            <span>{preset.displayName || preset.name}</span>
             {active && <Check size={12} className="shrink-0" />}
           </button>
         )

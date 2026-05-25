@@ -45,15 +45,15 @@ export default function Generator({
     [models, model])
 
   const ratioLabel = useMemo(() =>
-    ASPECT_RATIOS.find((r) => r.value === aspectRatio)?.label ?? 'Auto',
+    ASPECT_RATIOS.find((r) => r.value === aspectRatio)?.label ?? '自动',
     [aspectRatio])
 
   const resLabel = useMemo(() =>
-    RESOLUTIONS.find((r) => r.value === resolution)?.label ?? 'Auto',
+    RESOLUTIONS.find((r) => r.value === resolution)?.label ?? '自动',
     [resolution])
 
   const qualLabel = useMemo(() =>
-    QUALITY_OPTIONS.find((q) => q.value === quality)?.label ?? 'High',
+    QUALITY_OPTIONS.find((q) => q.value === quality)?.label ?? '高',
     [quality])
 
   const selectedPreviousCount = selectedPreviousImageIds.length
@@ -121,7 +121,7 @@ export default function Generator({
           continue
         }
         totalBytes += byteSize
-        const name = url.split('/').pop()?.split('?')[0] || 'image.png'
+        const name = url.split('/').pop()?.split('?')[0] || '图片.png'
         added.push({ name, type: blob.type, dataUrl, source: 'url', byteSize })
       } catch { /* skip invalid urls */ }
     }
@@ -280,7 +280,7 @@ export default function Generator({
             className="flex-1 min-w-0 resize-none bg-transparent px-2 py-1 text-[15px] leading-7 text-ink-primary outline-none placeholder:text-ink-faint"
             onChange={(e) => onPromptChange(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="描述你想创作的画面，Enter 提交 / Shift+Enter 换行"
+            placeholder="描述你想创作的画面，回车提交 / 上档键+回车换行"
             rows={2}
             value={prompt}
           />

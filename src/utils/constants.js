@@ -3,7 +3,7 @@ export const MAX_REFERENCE_IMAGE_BYTES = 20 * 1024 * 1024
 export const MAX_REFERENCE_IMAGE_TOTAL_BYTES = 48 * 1024 * 1024
 
 export const ASPECT_RATIOS = [
-  { value: '', label: 'Auto' },
+  { value: '', label: '自动' },
   { value: '1:1', label: '1:1 (正方形)' },
   { value: '3:2', label: '3:2 (横版)' },
   { value: '16:9', label: '16:9 (横版)' },
@@ -14,16 +14,16 @@ export const ASPECT_RATIOS = [
 ]
 
 export const RESOLUTIONS = [
-  { value: 'auto', label: 'Auto' },
+  { value: 'auto', label: '自动' },
   { value: '1080p', label: '1080P' },
   { value: '2k', label: '2K' },
   { value: '4k', label: '4K' },
 ]
 
 export const QUALITY_OPTIONS = [
-  { value: 'low', label: 'Low', description: '低质量，速度更快，适合草稿测试' },
-  { value: 'medium', label: 'Medium', description: '均衡质量与速度，适合日常生成' },
-  { value: 'high', label: 'High', description: '高质量，耗时更长，适合最终出图' },
+  { value: 'low', label: '低', description: '低质量，速度更快，适合草稿测试' },
+  { value: 'medium', label: '中', description: '均衡质量与速度，适合日常生成' },
+  { value: 'high', label: '高', description: '高质量，耗时更长，适合最终出图' },
 ]
 
 export const IMAGE_COUNTS = [1, 2, 3, 4, 5, 6, 7, 8]
