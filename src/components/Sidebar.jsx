@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import {
   Plus, Trash2, MessageCircle, Image,
-  ChevronLeft, ChevronRight, LogOut, Settings,
+  ChevronLeft, ChevronRight, LogOut, Settings, CreditCard,
 } from 'lucide-react'
 
 function getLastThumbnails(conv, max = 4) {
@@ -22,6 +22,7 @@ export default function Sidebar({
   conversations, activeId, onSelect, onCreate, onDelete,
   isOpen, onToggle,
   onLogout,
+  onOpenBilling,
   onOpenSettings,
 }) {
   const [expanded, setExpanded] = useState(true)
@@ -152,6 +153,17 @@ export default function Sidebar({
         <div className="border-t border-border-subtle pt-s-2">
           {expanded ? (
             <div className="flex items-center gap-s-1 px-s-1">
+              {onOpenBilling && (
+                <button
+                  aria-label="Subscription"
+                  className="flex flex-1 items-center gap-s-2 rounded-input px-s-3 py-s-2 text-sm text-ink-muted transition-colors hover:bg-surface-02 hover:text-ink-primary"
+                  onClick={onOpenBilling}
+                  type="button"
+                >
+                  <CreditCard size={14} />
+                  Plan
+                </button>
+              )}
               {onOpenSettings && (
                 <button
                   aria-label="设置"
@@ -177,6 +189,16 @@ export default function Sidebar({
             </div>
           ) : (
             <div className="flex flex-col items-center gap-s-2">
+              {onOpenBilling && (
+                <button
+                  aria-label="Subscription"
+                  className="grid h-9 w-9 place-items-center rounded-input text-ink-muted transition-colors hover:bg-surface-02 hover:text-ink-primary"
+                  onClick={onOpenBilling}
+                  type="button"
+                >
+                  <CreditCard size={15} />
+                </button>
+              )}
               {onOpenSettings && (
                 <button
                   aria-label="设置"

@@ -16,7 +16,7 @@ import Login from './components/Login'
 import Settings from './components/Settings'
 import Billing from './components/Billing'
 import { clearStoredUser, getStoredUser } from './utils/authStorage'
-import { fetchModels, optimizePromptStream, createImageJob, fetchJob } from './api/backend'
+import { authLogout, fetchModels, optimizePromptStream, createImageJob, fetchJob } from './api/backend'
 import { useSettings } from './hooks/useSettings'
 import { useConversations } from './hooks/useConversations'
 import { usePromptFavorites } from './hooks/usePromptFavorites'
@@ -176,6 +176,7 @@ export default function App() {
   }, [updateConfig])
 
   const handleLogout = useCallback(() => {
+    authLogout().catch(() => null)
     clearStoredUser()
     setLoginUser(null)
     updateConfig({ endpoint: '', apiKey: '', groupId: null, groupName: '' })

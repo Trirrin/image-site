@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url'
 import pg from 'pg'
 import bcrypt from 'bcryptjs'
 import { isEcomOptimizerModel, optimizeEcomPrompt } from '../functions/api/ecom-prompt-engine.js'
+import { createPaymentSessionStore } from './payment-session.js'
 
 const PORT = Number(process.env.PORT || 8787)
 const JOB_TTL_MS = 48 * 60 * 60 * 1000
@@ -19,6 +20,8 @@ const SUB2API_CONTROL_API_URL = normalizeBaseUrl(process.env.SUB2API_CONTROL_API
 const DB_PASSWORD = readRequiredEnv('SUB2API_DB_PASSWORD')
 const AUTH_SECRET = readRequiredEnv('IMAGE_SITE_AUTH_SECRET')
 const AUTH_TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000
+const PAYMENT_SESSION_TTL_MS = AUTH_TOKEN_TTL_MS
+const SUB_TOKEN_REFRESH_SKEW_MS = 60 * 1000
 
 const pool = new pg.Pool({
   host: process.env.SUB2API_DB_HOST || 'localhost',
@@ -34,6 +37,10 @@ const DIST_DIR = join(ROOT_DIR, 'dist')
 const JOB_DIR = process.env.IMAGE_SITE_JOB_DIR || join(ROOT_DIR, '.data', 'jobs')
 
 const runningJobs = new Set()
+const paymentSessions = createPaymentSessionStore({
+  ttlMs: PAYMENT_SESSION_TTL_MS,
+  refreshSkewMs: SUB_TOKEN_REFRESH_SKEW_MS,
+})
 
 function readRequiredEnv(name) {
   const value = process.env[name]?.trim()
@@ -48,6 +55,7 @@ function normalizeBaseUrl(value) {
 await mkdir(JOB_DIR, { recursive: true })
 await cleanupExpiredJobs()
 setInterval(cleanupExpiredJobs, 60 * 60 * 1000).unref()
+setInterval(cleanupExpiredPaymentSessions, 60 * 60 * 1000).unref()
 
 const server = createServer(async (req, res) => {
   try {
@@ -64,6 +72,10 @@ const server = createServer(async (req, res) => {
     }
     if (url.pathname === '/api/auth/login' && req.method === 'POST') {
       await handleAuthLogin(req, res)
+      return
+    }
+    if (url.pathname === '/api/auth/logout' && req.method === 'POST') {
+      await handleAuthLogout(req, res)
       return
     }
     if (url.pathname === '/api/auth/groups' && req.method === 'GET') {
@@ -159,14 +171,22 @@ async function handleAuthLogin(req, res) {
   }
 
   const subAuth = await trySub2apiLogin(email, password)
+  const paymentSessionId = subAuth?.accessToken ? paymentSessions.create(user.id, subAuth) : ''
   sendJson(res, 200, {
     user: {
       id: user.id,
       email: user.email,
-      token: createAuthToken(user, subAuth),
-      paymentReady: Boolean(subAuth?.accessToken),
+      token: createAuthToken(user, paymentSessionId),
+      paymentReady: Boolean(paymentSessionId),
     },
   })
+}
+
+async function handleAuthLogout(req, res) {
+  const auth = requireAuth(req, res)
+  if (!auth) return
+  if (auth.paymentSessionId) paymentSessions.delete(auth.paymentSessionId)
+  sendJson(res, 200, { ok: true })
 }
 
 async function trySub2apiLogin(email, password) {
@@ -186,14 +206,12 @@ async function trySub2apiLogin(email, password) {
   }
 }
 
-function createAuthToken(user, subAuth = null) {
+function createAuthToken(user, paymentSessionId = '') {
   const payload = Buffer.from(JSON.stringify({
     sub: String(user.id),
     email: user.email,
     exp: Date.now() + AUTH_TOKEN_TTL_MS,
-    subAccessToken: subAuth?.accessToken || '',
-    subRefreshToken: subAuth?.refreshToken || '',
-    subTokenExpiresAt: subAuth?.expiresAt || 0,
+    sid: paymentSessionId,
   })).toString('base64url')
   return `${payload}.${signAuthPayload(payload)}`
 }
@@ -229,9 +247,7 @@ function parseAuthToken(token) {
     return {
       userId,
       email: data.email || '',
-      subAccessToken: typeof data.subAccessToken === 'string' ? data.subAccessToken : '',
-      subRefreshToken: typeof data.subRefreshToken === 'string' ? data.subRefreshToken : '',
-      subTokenExpiresAt: Number.isFinite(data.subTokenExpiresAt) ? data.subTokenExpiresAt : 0,
+      paymentSessionId: typeof data.sid === 'string' ? data.sid : '',
     }
   } catch {
     return null
@@ -247,15 +263,10 @@ function timingSafeTextEqual(a, b) {
 async function handleBillingProxy(req, res, path, options = {}) {
   const auth = requireAuth(req, res)
   if (!auth) return
-  if (!auth.subAccessToken) {
-    sendJson(res, 403, { error: 'payment session is unavailable; please log in again' })
-    return
-  }
 
   try {
-    const data = await requestSub2api(path, {
+    const data = await requestSub2apiWithSession(auth, path, {
       method: options.method || 'GET',
-      token: auth.subAccessToken,
       body: options.body,
       headers: {
         'Accept-Language': req.headers['accept-language'] || '',
@@ -265,6 +276,17 @@ async function handleBillingProxy(req, res, path, options = {}) {
   } catch (error) {
     sendJson(res, error.status || 502, { error: error.message || 'sub2api request failed' })
   }
+}
+
+async function requestSub2apiWithSession(auth, path, options = {}) {
+  return paymentSessions.requestWithSession(auth, path, options, requestSub2api, refreshSub2apiAuth)
+}
+
+async function refreshSub2apiAuth(refreshToken) {
+  return requestSub2api('/auth/refresh', {
+    method: 'POST',
+    body: { refresh_token: refreshToken },
+  })
 }
 
 async function requestSub2api(path, { method = 'GET', token = '', body, headers = {} } = {}) {
@@ -869,6 +891,10 @@ async function cleanupExpiredJobs() {
     const job = await readJobFromFile(path).catch(() => null)
     if (!job || isExpired(job)) await rm(path, { force: true })
   }
+}
+
+function cleanupExpiredPaymentSessions() {
+  paymentSessions.cleanupExpired()
 }
 
 async function serveStatic(url, res) {

@@ -60,7 +60,11 @@ export default function Billing({ open, onClose, onPaymentComplete }) {
     }
   }, [open])
 
-  useEffect(() => { load() }, [load])
+  useEffect(() => {
+    if (!open) return undefined
+    const timer = window.setTimeout(() => { load() }, 0)
+    return () => window.clearTimeout(timer)
+  }, [load, open])
 
   async function handleCreateOrder() {
     if (!selectedPlan) {

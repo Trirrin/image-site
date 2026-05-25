@@ -160,6 +160,11 @@ export function authLogin(credentials = {}) {
   return wait(500).then(() => ({ user: { id: 'dev-user', email: 'dev@test.com', token: 'mock-token-dev' } }))
 }
 
+export function authLogout() {
+  if (!MOCK) return request('/api/auth/logout', { method: 'POST', headers: authHeaders() })
+  return wait(100).then(() => ({ ok: true }))
+}
+
 export function authGroups() {
   if (!MOCK) return request('/api/auth/groups', { headers: authHeaders() })
   return wait(300).then(() => ({ groups: MOCK_GROUPS }))
