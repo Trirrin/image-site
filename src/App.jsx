@@ -772,8 +772,6 @@ export default function App() {
   const activeConversationBusy = activeConversationTurns.some((turn) => (turn.status === 'pending' && turn.jobId) || turn.status === 'optimizing')
     || submittingConversationId === activeId
     || (activeId == null && submittingConversationId != null)
-  const hasSelectedPreviousImage = selectedPreviousImages.length > 0
-  const effectiveMode = referenceImages.length > 0 || hasSelectedPreviousImage ? 'edit' : mode
   const displayView = prompt.trim() || referenceImages.length > 0 || activeConversationBusy || activeConversationTurns.length > 0
 
   return (
@@ -917,10 +915,8 @@ export default function App() {
               isBusy={activeConversationBusy}
               model={model}
               models={imageModels}
-              mode={effectiveMode}
               onAspectRatioChange={setAspectRatio}
               onCountChange={setCount}
-              onModeChange={setMode}
               onModelChange={setModel}
               onOpenPromptMarket={() => setPromptMarketOpen(true)}
               onPromptChange={setPrompt}

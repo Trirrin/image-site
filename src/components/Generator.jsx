@@ -15,7 +15,6 @@ export default function Generator({
   referenceImages, onReferenceImagesChange,
   previousImages = [], selectedPreviousImageIds = [], onTogglePreviousImage,
   models, model, onModelChange,
-  mode, onModeChange,
   aspectRatio, onAspectRatioChange,
   resolution, onResolutionChange,
   count, onCountChange,
@@ -264,15 +263,6 @@ export default function Generator({
             >
               <Sparkles size={16} />
             </button>
-            {mode === 'edit' && (
-              <button
-                className="rounded-pill border-warning/40 bg-warning/15 px-s-2 py-s-0.5 text-[10px] font-medium text-warning transition hover:bg-warning/25"
-                onClick={() => onModeChange('generate')}
-                type="button"
-              >
-                修改
-              </button>
-            )}
           </div>
 
           <textarea
