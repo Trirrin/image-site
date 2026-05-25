@@ -109,6 +109,7 @@ export default function App() {
   const [pendingPromptDraft, setPendingPromptDraft] = useState(null)
   const [optimizerStatus, setOptimizerStatus] = useState('')
   const [optimizingTurn, setOptimizingTurn] = useState(null)
+  const [composerHeight, setComposerHeight] = useState(224)
 
   const [promptMarketOpen, setPromptMarketOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
@@ -773,6 +774,8 @@ export default function App() {
     || submittingConversationId === activeId
     || (activeId == null && submittingConversationId != null)
   const displayView = prompt.trim() || referenceImages.length > 0 || activeConversationBusy || activeConversationTurns.length > 0
+  const scrollBottomPadding = Math.max(224, composerHeight + 32)
+  const errorBottomOffset = Math.max(180, composerHeight + 16)
 
   return (
     <div className="flex h-screen overflow-hidden bg-ink-base">
@@ -810,7 +813,7 @@ export default function App() {
 
         {view === 'chat' && (
           <div className="flex-1 relative overflow-hidden">
-            <div className="absolute inset-0 overflow-y-auto pb-56">
+            <div className="absolute inset-0 overflow-y-auto" style={{ paddingBottom: scrollBottomPadding }}>
               <div className="mx-auto max-w-6xl px-s-5 py-s-5">
                 {!displayView ? (
                   <div className="flex min-h-52 flex-col items-center justify-center gap-s-4 text-center">
@@ -902,7 +905,7 @@ export default function App() {
 
 
             {error && (
-              <div className="pointer-events-none absolute bottom-[180px] left-1/2 z-20 -translate-x-1/2 px-s-4">
+              <div className="pointer-events-none absolute left-1/2 z-20 -translate-x-1/2 px-s-4" style={{ bottom: errorBottomOffset }}>
                 <div className="pointer-events-auto rounded-pill border border-danger/40 bg-danger/10 px-s-5 py-s-2 text-sm font-medium text-danger shadow-lift">
                   {error}
                 </div>
@@ -922,6 +925,7 @@ export default function App() {
               onPromptChange={setPrompt}
               onQualityChange={setQuality}
               onReferenceImageError={showError}
+              onHeightChange={setComposerHeight}
               onReferenceImagesChange={handleReferenceImagesChange}
               onResolutionChange={setResolution}
               onSubmit={handleSubmit}

@@ -21,6 +21,7 @@ export default function Generator({
   quality, onQualityChange,
   onOpenPromptMarket,
   onReferenceImageError,
+  onHeightChange,
 }) {
   const [dragOver, setDragOver] = useState(false)
   const [modelOpen, setModelOpen] = useState(false)
@@ -30,6 +31,7 @@ export default function Generator({
   const [qualOpen, setQualOpen] = useState(false)
   const textareaRef = useRef(null)
   const fileRef = useRef(null)
+  const rootRef = useRef(null)
 
   useEffect(() => {
     const el = textareaRef.current
@@ -38,6 +40,20 @@ export default function Generator({
     const maxH = Math.min(320, Math.max(72, Math.floor(window.innerHeight * 0.42)))
     el.style.height = `${Math.min(Math.max(el.scrollHeight, 72), maxH)}px`
   }, [prompt])
+
+  useEffect(() => {
+    const el = rootRef.current
+    if (!el || !onHeightChange) return undefined
+
+    const reportHeight = () => onHeightChange(Math.ceil(el.getBoundingClientRect().height))
+    reportHeight()
+
+    if (typeof ResizeObserver === 'undefined') return undefined
+
+    const observer = new ResizeObserver(reportHeight)
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [onHeightChange])
 
   const modelLabel = useMemo(() =>
     models.find((m) => m.model_key === model)?.display_name || model || '选择模型',
@@ -182,7 +198,7 @@ export default function Generator({
   const pillOn = 'border-accent bg-accent/10 text-accent'
 
   return (
-    <div className="pointer-events-none absolute inset-x-0 bottom-0 z-30 px-4 pb-5 sm:px-6">
+    <div ref={rootRef} className="pointer-events-none absolute inset-x-0 bottom-0 z-30 px-4 pb-5 sm:px-6">
       <div
         className={`pointer-events-auto mx-auto w-full max-w-6xl rounded-card border bg-surface-01/92 p-2 shadow-glass backdrop-blur transition ${
           dragOver ? 'border-accent ring-2 ring-accent' : 'border-border-subtle'
